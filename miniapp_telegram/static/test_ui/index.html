@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Nova/Interlace Test UI</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2em;
+        }
+
+        .section {
+            margin-bottom: 2em;
+            padding: 1em;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        .section h2 {
+            margin-top: 0;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 80px;
+        }
+
+        .log {
+            background: #f9f9f9;
+            border: 1px solid #eee;
+            padding: 1em;
+            margin-top: 1em;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .response {
+            margin-top: 1em;
+            padding: 0.5em;
+            border-radius: 4px;
+        }
+
+        .success {
+            background: #e0ffe0;
+            border: 1px solid #b2ffb2;
+        }
+
+        .error {
+            background: #ffe0e0;
+            border: 1px solid #ffb2b2;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Nova/Interlace Test UI</h1>
+    <div class="section">
+        <h2>Simulate Deposit Event</h2>
+        <form id="deposit-form">
+            <label>Address: <input type="text" name="address" value="TENPN4m1kPMJPNYMFkD4wDdEXYKVkGng1s"
+                    required></label><br>
+            <label>Amount: <input type="number" name="amount" value="100.0" required></label><br>
+            <label>Asset: <input type="text" name="asset" value="usdt" required></label><br>
+            <label>Asset Type: <input type="text" name="asset_type" value="crypto" required></label><br>
+            <label>Created At: <input type="text" name="created_at" value="2025-04-23T22:10:39.292Z"></label><br>
+            <label>Updated At: <input type="text" name="updated_at" value="2025-04-23T22:14:30.457Z"></label><br>
+            <label>Tx ID: <input type="text" name="tx_id"
+                    value="1322e7779d2ef3a10e768df503fd1d379a432f65e35b76ef99a7a9ef600c4933" required></label><br>
+            <label>Tx Link: <input type="text" name="tx_link"
+                    value="https://tronscan.org/#/transaction/1322e7779d2ef3a10e768df503fd1d379a432f65e35b76ef99a7a9ef600c4933"></label><br>
+            <label>Type: <input type="text" name="type" value="deposit"></label><br>
+            <label>Status:
+                <select name="status">
+                    <option value="processing">processing</option>
+                    <option value="done">done</option>
+                </select>
+            </label><br>
+            <!-- Hidden fields for control, high_risk, tag, dchain_id, fee, uuid -->
+            <input type="hidden" name="control" value="">
+            <input type="hidden" name="high_risk" value="">
+            <input type="hidden" name="tag" value="">
+            <input type="hidden" name="dchain_id" value="trc20usdt">
+            <input type="hidden" name="fee" value="0.0">
+            <input type="hidden" name="uuid" value="">
+            <button type="submit">Simulate Deposit</button>
+        </form>
+        <div id="deposit-response" class="response"></div>
+    </div>
+    <div class="section">
+        <h2>Simulate CardTransaction Event</h2>
+        <form id="cardtransaction-form">
+            <label>ID: <input type="text" name="id" value="3e4eab2b-0be5-40fe-a931-9f98438f1777"></label><br>
+            <label>Account ID: <input type="text" name="accountId"
+                    value="e7107263-a635-4e3b-b9be-bb26d3d33e22"></label><br>
+            <label>Card ID: <input type="text" name="cardId" value="258947d6-0a8c-4804-8d08-0fb3621a48b5"></label><br>
+            <label>Currency: <input type="text" name="currency" value="USD"></label><br>
+            <label>Amount: <input type="number" name="amount" value="17.94"></label><br>
+            <label>Fee: <input type="number" name="fee" value="0.04"></label><br>
+            <label>Type:
+                <select name="type">
+                    <option value="Consumption">Consumption</option>
+                    <option value="Fee_Consumption">Fee_Consumption</option>
+                    <option value="TransferIn">TransferIn</option>
+                    <option value="TransferOut">TransferOut</option>
+                    <option value="Credit">Credit</option>
+                    <option value="Reversal">Reversal</option>
+                    <option value="Frozen">Frozen</option>
+                    <option value="UnFrozen">UnFrozen</option>
+                </select>
+            </label><br>
+            <label>Client Transaction ID: <input type="text" name="clientTransactionId"
+                    value="tid_bKssgmaVb7"></label><br>
+            <label>Remark: <input type="text" name="remark" value="Apple Pay Service Fee"></label><br>
+            <label>Detail: <input type="text" name="detail"
+                    value="WOLT ENTERPRISES ISR IL(ECOMMERCE APPLE)"></label><br>
+            <label>Status:
+                <select name="status">
+                    <option value="Pending">Pending</option>
+                    <option value="Closed">Closed</option>
+                    <option value="Failed">Failed</option>
+                </select>
+            </label><br>
+            <label>Transaction Time: <input type="text" name="transactionTime"
+                    value="2025-05-09T10:25:21.934Z"></label><br>
+            <label>Transaction Currency: <input type="text" name="transactionCurrency" value="ILS"></label><br>
+            <label>Transaction Amount: <input type="number" name="transactionAmount" value="63"></label><br>
+            <label>Business Status:
+                <select name="businessStatus">
+                    <option value="Pending">Pending</option>
+                    <option value="Success">Success</option>
+                    <option value="Failed">Failed</option>
+                </select>
+            </label><br>
+            <button type="submit">Simulate CardTransaction</button>
+        </form>
+        <div id="cardtransaction-response" class="response"></div>
+    </div>
+    <div class="section">
+        <h2>Custom Event JSON</h2>
+        <textarea id="custom-json" placeholder="Paste custom event JSON here..."></textarea><br>
+        <label>Event Type:
+            <select id="custom-type">
+                <option value="deposit">Deposit</option>
+                <option value="card_transaction">Card Transaction</option>
+            </select>
+        </label>
+        <button id="custom-send">Send Custom Event</button>
+        <div id="custom-response" class="response"></div>
+    </div>
+    <div class="section">
+        <h2>Simulate AssetDeposit Event</h2>
+        <form id="assetdeposit-form">
+            <label>Chain: <input type="text" name="chain" value="TRX" required></label><br>
+            <label>Amount: <input type="number" name="amount" value="996" required></label><br>
+            <label>Fee: <input type="number" name="fee" value="0" required></label><br>
+            <label>Update Time: <input type="text" name="updateTime" value="2025-05-09T10:13:26.088Z"
+                    required></label><br>
+            <label>Transaction Hash: <input type="text" name="transactionHash"
+                    value="ebec7fcb1e9501d4b2d51fce79e082e8672d94dbfad9b9202254e6137e133586" required></label><br>
+            <label>Account ID: <input type="text" name="accountId" value="e7107263-a635-4e3b-b9be-bb26d3d33e22"
+                    required></label><br>
+            <label>Create Time: <input type="text" name="createTime" value="2025-05-09T10:13:25.967Z"
+                    required></label><br>
+            <label>Currency: <input type="text" name="currency" value="USDT" required></label><br>
+            <label>From: <input type="text" name="from" value="TUR6iqkZjsf6CXMg3bm5g9sBFZSLhmSjvm" required></label><br>
+            <label>ID: <input type="text" name="id" value="c78bfb38-65cc-4843-b1bd-21da697a22ef" required></label><br>
+            <label>To: <input type="text" name="to" value="TPuGxZYHKEQWoX9ZfsXNfcXD5hw7XRUeXh" required></label><br>
+            <label>Balance ID: <input type="text" name="balanceId" value="f01eef93-9001-43ec-b799-f9dfbb802e52"
+                    required></label><br>
+            <label>Status:
+                <select name="status">
+                    <option value="Closed">Closed</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Failed">Failed</option>
+                </select>
+            </label><br>
+            <label>Sign: <input type="text" name="sign"
+                    value="df8f2ff773475312d5a950577f8b2ed9facc17a20a1a122d906296ba295912eb" required></label><br>
+            <label>Business Status:
+                <select name="businessStatus">
+                    <option value="Success">Success</option>
+                    <option value="Failed">Failed</option>
+                    <option value="Pending">Pending</option>
+                </select>
+            </label><br>
+            <label>Business Type: <input type="text" name="businessType" value="AssetsDeposit" readonly></label><br>
+            <label>Remarks: <input type="text" name="remarks" value=""></label><br>
+            <button type="submit">Simulate AssetDeposit</button>
+        </form>
+        <div id="assetdeposit-response" class="response"></div>
+    </div>
+    <div class="section">
+        <h2>Test Log</h2>
+        <div id="test-log" class="log"></div>
+    </div>
+    <script src="/test_ui/test_ui.js"></script>
+</body>
+
+</html>

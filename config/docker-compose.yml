@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # MongoDB Service
+  mongodb:
+    image: mongo:6.0
+    container_name: nova_mongodb
+    restart: always
+    ports:
+      - "0.0.0.0:27017:27017"
+    volumes:
+      - nova_mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    environment:
+      MONGO_INITDB_DATABASE: nova
+      MONGO_INITDB_ROOT_USERNAME: nova_user
+      MONGO_INITDB_ROOT_PASSWORD: SFdsfg2345-dsfsa342
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    command: ["--bind_ip_all", "--auth"]
+    networks:
+      - nova_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  redis:
+    image: redis:7.0.15
+    container_name: nova_redis
+    restart: always
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis.acl:/usr/local/etc/redis/redis.acl:ro
+    command:
+      - redis-server
+      - --aclfile
+      - /usr/local/etc/redis/redis.acl
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MySQL Service
+  mysql:
+    image: mysql:8.0
+    container_name: nova_mysql
+    restart: always
+    ports:
+      - "0.0.0.0:3306:3306"
+    volumes:
+      - nova_mysql_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "SFdsfg2345-dsfsa342"
+      MYSQL_DATABASE: nova
+      MYSQL_USER: nova_user
+      MYSQL_PASSWORD: "SFdsfg2345-dsfsa342"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - nova_network
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+networks:
+  nova_network:
+    driver: bridge
+
+volumes:
+  nova_mongodb_data:
+    external: true
+    name: nova_mongodb_data
+  redis_data:
+  nova_mysql_data:
+    external: true
+    name: nova_mysql_data 

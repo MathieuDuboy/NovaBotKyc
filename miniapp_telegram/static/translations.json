@@ -1,0 +1,28 @@
+{
+    "en": {
+        "title": "NovaBotCard",
+        "user_id": "User ID : ",
+        "top_up": "Deposit",
+        "block_card": "Block card",
+        "order_card": "Order Card",
+        "no_transactions": "No transactions in your history ? Your history can be made today.",
+        "settings": "Settings",
+        "contact_support": "Contact Support",
+        "card_creating": "Card Issuance in Progress",
+        "card_creating_message": "Your card is being created and will be available soon.",
+        "start_message": "send /start in the chat for Enrollment to get a card"
+    },
+    "ru": {
+        "title": "NovaBotCard",
+        "user_id": "Идентификатор пользователя : ",
+        "top_up": "Пополнить",
+        "block_card": "Заблокировать карту",
+        "order_card": "Заказать карту",
+        "no_transactions": "Нет транзакций в вашей истории? Ваша история может быть создана сегодня.",
+        "settings": "Настройки",
+        "contact_support": "Связаться с поддержкой",
+        "card_creating": "Выпуск карты в процессе",
+        "card_creating_message": "Ваша карта создается и скоро будет доступна.",
+        "start_message": "Отправьте /start в чат для записи на получение карты"
+    }
+}

@@ -1,0 +1,12 @@
+{
+    "ENV": "prod",
+    "api_base": "/api",
+    "version": "1.0.0",
+    "POOL": false,
+    "min_deposit_amount": 100,
+    "max_deposit_amount": 100000,
+    "deposit_address_valid_minutes":1440,
+    "API": {
+        "BASE_URL": "http://localhost:3001"
+    }
+}

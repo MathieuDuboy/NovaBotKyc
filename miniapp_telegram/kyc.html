@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Vérification d'identité</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 16px;
+         background: var(--tg-theme-bg-color, #fff); color: var(--tg-theme-text-color, #111); }
+  h1 { font-size: 19px; margin: 4px 0 2px; }
+  p.sub { font-size: 13px; opacity: .7; margin: 0 0 16px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 4px; }
+  input, select { width: 100%; box-sizing: border-box; padding: 11px; font-size: 15px;
+          border: 1px solid #ccc; border-radius: 10px; background: var(--tg-theme-bg-color,#fff);
+          color: var(--tg-theme-text-color,#111); }
+  .row { display: flex; gap: 10px; } .row > div { flex: 1; }
+  .file { padding: 14px; border: 1px dashed #999; border-radius: 10px; text-align: center;
+          font-size: 14px; margin-top: 4px; }
+  .file.ok { border-color: #2ecc71; color: #2ecc71; }
+  button { width: 100%; padding: 15px; font-size: 16px; font-weight: 700; margin-top: 22px;
+           border: 0; border-radius: 12px; background: var(--tg-theme-button-color,#2481cc);
+           color: var(--tg-theme-button-text-color,#fff); }
+  button:disabled { opacity: .5; }
+  #msg { margin-top: 14px; font-size: 14px; text-align: center; min-height: 18px; }
+  .err { color: #e74c3c; } .okmsg { color: #2ecc71; }
+</style>
+</head>
+<body>
+  <h1>Vérification d'identité</h1>
+  <p class="sub">Pour obtenir ta carte, renseigne tes informations et ajoute une pièce d'identité + un selfie. Vérification gérée par Interlace.</p>
+
+  <form id="f">
+    <div class="row">
+      <div><label>Prénom</label><input name="firstName" required pattern="[A-Za-z ]+" title="Lettres latines uniquement" /></div>
+      <div><label>Nom</label><input name="lastName" required pattern="[A-Za-z ]+" /></div>
+    </div>
+    <label>Email</label><input name="email" type="email" required />
+    <label>Date de naissance</label><input name="dateOfBirth" type="date" required />
+    <div class="row">
+      <div><label>Genre</label>
+        <select name="gender" required><option value="">—</option><option value="MALE">Homme</option><option value="FEMALE">Femme</option></select></div>
+      <div><label>Nationalité (ISO, ex. FR)</label><input name="nationality" required maxlength="2" style="text-transform:uppercase" /></div>
+    </div>
+    <div class="row">
+      <div><label>Indicatif</label><input name="phoneCountryCode" required placeholder="33" /></div>
+      <div><label>Téléphone</label><input name="phoneNumber" required placeholder="612345678" /></div>
+    </div>
+    <div class="row">
+      <div><label>Type de pièce</label>
+        <select name="idType" required><option value="PASSPORT">Passeport</option><option value="ID_CARD">Carte d'identité</option></select></div>
+      <div><label>N° de pièce</label><input name="nationalId" required /></div>
+    </div>
+    <div class="row">
+      <div><label>Émise le</label><input name="issueDate" type="date" /></div>
+      <div><label>Expire le</label><input name="expiryDate" type="date" /></div>
+    </div>
+    <label>Adresse</label><input name="addr_line1" placeholder="Rue" required />
+    <div class="row">
+      <div><input name="addr_city" placeholder="Ville" required /></div>
+      <div><input name="addr_postal" placeholder="Code postal" required /></div>
+    </div>
+    <input name="addr_country" placeholder="Pays (ISO, ex. FR)" maxlength="2" required style="text-transform:uppercase;margin-top:10px" />
+
+    <label>Pièce d'identité — recto</label>
+    <input id="idFront" name="idFront" type="file" accept="image/*" capture="environment" required hidden />
+    <div class="file" id="idFrontLbl" onclick="idFront.click()">📷 Photographier / choisir le recto</div>
+
+    <label>Pièce d'identité — verso (si carte d'identité)</label>
+    <input id="idBack" name="idBack" type="file" accept="image/*" capture="environment" hidden />
+    <div class="file" id="idBackLbl" onclick="idBack.click()">📷 Verso (optionnel)</div>
+
+    <label>Selfie</label>
+    <input id="selfie" name="selfie" type="file" accept="image/*" capture="user" required hidden />
+    <div class="file" id="selfieLbl" onclick="selfie.click()">🤳 Prendre un selfie</div>
+
+    <button id="submit" type="submit">Envoyer ma vérification</button>
+    <div id="msg"></div>
+  </form>
+
+<script>
+  const tg = window.Telegram?.WebApp; if (tg) { tg.ready(); tg.expand(); }
+  const qs = new URLSearchParams(location.search);
+  const uid = qs.get('uid') || tg?.initDataUnsafe?.user?.id || '';
+
+  function bindFile(id) {
+    const inp = document.getElementById(id), lbl = document.getElementById(id + 'Lbl');
+    inp.addEventListener('change', () => {
+      if (inp.files.length) { lbl.classList.add('ok'); lbl.textContent = '✓ ' + inp.files[0].name; }
+    });
+  }
+  ['idFront','idBack','selfie'].forEach(bindFile);
+
+  document.getElementById('f').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('msg'), btn = document.getElementById('submit');
+    msg.className = ''; msg.textContent = '';
+    if (!uid) { msg.className='err'; msg.textContent = "Identifiant utilisateur manquant."; return; }
+    const fd = new FormData(e.target);
+    fd.append('uid', uid);
+    if (tg?.initData) fd.append('initData', tg.initData);
+    btn.disabled = true; msg.textContent = 'Envoi en cours…';
+    try {
+      const r = await fetch('/api/kyc_submit', { method: 'POST', body: fd });
+      const j = await r.json();
+      if (j.success) {
+        msg.className = 'okmsg';
+        msg.textContent = '✅ Vérification envoyée ! Tu recevras ta carte une fois validée.';
+        if (tg) setTimeout(() => tg.close(), 2500);
+      } else {
+        msg.className = 'err'; msg.textContent = '❌ ' + (j.message || 'Erreur'); btn.disabled = false;
+      }
+    } catch (err) {
+      msg.className = 'err'; msg.textContent = '❌ Erreur réseau : ' + err; btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

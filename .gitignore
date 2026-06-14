@@ -1,0 +1,53 @@
+# Python virtual environment
+venv/
+env/
+ENV/
+.env/
+.venv/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+.env
+.venv
+.vscode
+__pycache__
+interlace/__pycache__
+interlace/resources/__pycache__
+services/__pycache__
+tronscan/__pycache__
+utils/__pycache__
+venv
+address_list.csv
+nova_address.csv
+# secrets (ne jamais committer)
+config/params.json
+config/credentials.json
+venv/
+__pycache__/
+
+# config de référence selharrar (secrets) — ne jamais committer
+config/params.selharrar-reference.json
+config/*reference*.json

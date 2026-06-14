@@ -1,0 +1,79 @@
+# Infra sandbox ISOLÉE du bot KYC (Bot A) — distincte de nova_sbx (pikabao) et nova_il (interlace).
+# Ports : MySQL 3308, Mongo 27019, Redis 6382.
+# Lancer :  docker compose -f config/docker-compose.sandbox.yml -p nova_kyc up -d
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: nova_kyc_mongodb
+    restart: always
+    ports:
+      - "127.0.0.1:27019:27017"
+    volumes:
+      - nova_kyc_mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    environment:
+      MONGO_INITDB_DATABASE: nova
+      MONGO_INITDB_ROOT_USERNAME: nova_user
+      MONGO_INITDB_ROOT_PASSWORD: SFdsfg2345-dsfsa342
+    command: ["--bind_ip_all", "--auth"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - nova_kyc_network
+
+  redis:
+    image: redis:7.0.15
+    container_name: nova_kyc_redis
+    restart: always
+    ports:
+      - "127.0.0.1:6382:6379"
+    volumes:
+      - nova_kyc_redis_data:/data
+      - ./redis.acl:/usr/local/etc/redis/redis.acl:ro
+    command:
+      - redis-server
+      - --aclfile
+      - /usr/local/etc/redis/redis.acl
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mysql:
+    image: mysql:8.0
+    container_name: nova_kyc_mysql
+    restart: always
+    ports:
+      - "127.0.0.1:3308:3306"
+    volumes:
+      - nova_kyc_mysql_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "SFdsfg2345-dsfsa342"
+      MYSQL_DATABASE: nova
+      MYSQL_USER: nova_user
+      MYSQL_PASSWORD: "SFdsfg2345-dsfsa342"
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - nova_kyc_network
+
+networks:
+  nova_kyc_network:
+    driver: bridge
+
+volumes:
+  nova_kyc_mongodb_data:
+  nova_kyc_redis_data:
+  nova_kyc_mysql_data:
