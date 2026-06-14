@@ -595,7 +595,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             language,
                             default="Referral code saved!")
                     )
-                    kyc_url = f"{config.MINIAPP_URL.rstrip('/')}/kyc?uid={chat_id}"
+                    kyc_url = f"{config.MINIAPP_URL.rstrip(chr(47))}/kyc?uid={chat_id}&lang={language}"
                     intro = get_string(
                         "kycFormIntro", language,
                         default=("Pour obtenir ta carte, complète ta vérification "
@@ -632,7 +632,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update_user_state_with_retry(chat_id, {"step": "referral"})
         elif current_step == "kyc_form":
             # L'user doit utiliser le bouton (mini app), pas taper du texte.
-            kyc_url = f"{config.MINIAPP_URL.rstrip('/')}/kyc?uid={chat_id}"
+            kyc_url = f"{config.MINIAPP_URL.rstrip(chr(47))}/kyc?uid={chat_id}&lang={language}"
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=get_string(

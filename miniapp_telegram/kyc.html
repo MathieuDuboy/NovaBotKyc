@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>Vérification d'identité</title>
+<title>KYC</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root{
@@ -14,14 +14,12 @@
     --accent: var(--tg-theme-button-color, #3b82f6);
     --accent-text: var(--tg-theme-button-text-color, #fff);
     --border: rgba(255,255,255,.10);
-    --ok:#22c55e; --err:#ef4444; --radius:16px;
+    --ok:#22c55e; --err:#ef4444;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   html,body{margin:0; background:var(--bg); color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;}
   body{padding:0 18px 120px; max-width:520px; margin:0 auto;}
-
-  /* En-tête + progression */
   header{position:sticky; top:0; background:var(--bg); padding:18px 0 12px; z-index:5;}
   .title{font-size:20px; font-weight:800; letter-spacing:-.3px; margin:0;}
   .subtitle{font-size:13px; color:var(--hint); margin:4px 0 14px;}
@@ -30,17 +28,14 @@
   .steps i.done{background:var(--accent);} .steps i.cur{background:var(--accent); opacity:.55;}
   .stepmeta{display:flex; justify-content:space-between; align-items:baseline; margin-top:10px;}
   .stepmeta b{font-size:16px; font-weight:700;} .stepmeta span{font-size:12px; color:var(--hint);}
-
-  /* Panneaux (slides) */
   .viewport{overflow:hidden;}
   .track{display:flex; transition:transform .35s cubic-bezier(.4,0,.2,1);}
   .panel{min-width:100%; padding:6px 2px 2px; opacity:.4; transition:opacity .35s;}
   .panel.active{opacity:1;}
-
   label{display:block; font-size:12.5px; font-weight:600; color:var(--hint);
     margin:14px 2px 6px; text-transform:uppercase; letter-spacing:.4px;}
   .field{position:relative;}
-  input,select{width:100%; padding:14px 14px; font-size:16px; color:var(--text);
+  input,select{width:100%; padding:14px; font-size:16px; color:var(--text);
     background:var(--card); border:1.5px solid var(--border); border-radius:12px; outline:none;
     transition:border-color .15s, box-shadow .15s; appearance:none;}
   input:focus,select:focus{border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent);}
@@ -49,14 +44,10 @@
     background-repeat:no-repeat; background-position:right 14px center; padding-right:38px;}
   .row{display:flex; gap:10px;} .row>*{flex:1;} .row .grow2{flex:2;}
   .hint{font-size:11.5px; color:var(--hint); margin:5px 2px 0;}
-
-  /* Segmented (genre) */
   .seg{display:flex; gap:8px;}
   .seg button{flex:1; padding:13px; border:1.5px solid var(--border); background:var(--card);
     color:var(--text); border-radius:12px; font-size:15px; font-weight:600;}
   .seg button.on{border-color:var(--accent); background:color-mix(in srgb,var(--accent) 16%,transparent);}
-
-  /* Dropzone fichiers */
   .drop{display:flex; align-items:center; gap:14px; padding:16px; border:1.5px dashed var(--border);
     border-radius:14px; background:var(--card); cursor:pointer; transition:.15s;}
   .drop:active{transform:scale(.99);}
@@ -67,23 +58,15 @@
   .drop .tx small{color:var(--hint); font-size:12px;}
   .drop img{width:46px; height:46px; border-radius:12px; object-fit:cover; flex:none; display:none;}
   .drop.filled img{display:block;} .drop.filled .ic{display:none;}
-
   .err-msg{color:var(--err); font-size:12px; margin:6px 2px 0; display:none;}
   .err-msg.show{display:block;}
-
-  /* Récap */
   .recap{background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden;}
   .recap div{display:flex; justify-content:space-between; gap:12px; padding:11px 14px; font-size:13.5px; border-top:1px solid var(--border);}
   .recap div:first-child{border-top:0;} .recap span{color:var(--hint);} .recap b{font-weight:600; text-align:right; word-break:break-word;}
-
-  /* Bouton bas (fallback si pas de MainButton Telegram) */
   .fab{position:fixed; left:0; right:0; bottom:0; padding:14px 18px calc(14px + env(safe-area-inset-bottom));
     background:linear-gradient(transparent,var(--bg) 22%); max-width:520px; margin:0 auto;}
   .fab button{width:100%; padding:16px; border:0; border-radius:14px; background:var(--accent);
     color:var(--accent-text); font-size:16px; font-weight:800;}
-  .fab button:disabled{opacity:.5;}
-
-  /* États final */
   .final{text-align:center; padding:40px 10px;}
   .final .emoji{font-size:54px;} .final h2{margin:14px 0 6px; font-size:20px;}
   .final p{color:var(--hint); font-size:14px; line-height:1.5;}
@@ -95,8 +78,8 @@
 </head>
 <body>
   <header>
-    <h1 class="title">Vérification d'identité</h1>
-    <p class="subtitle">Quelques étapes pour obtenir ta carte. Données chiffrées, vérifiées par Interlace.</p>
+    <h1 class="title" data-i18n="title"></h1>
+    <p class="subtitle" data-i18n="subtitle"></p>
     <div class="steps" id="bars"></div>
     <div class="stepmeta"><b id="stepTitle"></b><span id="stepCount"></span></div>
   </header>
@@ -104,215 +87,233 @@
   <main id="wizard">
     <div class="viewport"><div class="track" id="track">
 
-      <!-- 1. Identité -->
-      <section class="panel" data-title="Identité">
+      <section class="panel" data-tk="s_identity">
         <div class="row">
-          <div class="field"><label>Prénom</label><input name="firstName" data-req placeholder="Jean" autocomplete="given-name"><div class="err-msg">Requis (lettres latines)</div></div>
-          <div class="field"><label>Nom</label><input name="lastName" data-req placeholder="Dupont" autocomplete="family-name"><div class="err-msg">Requis</div></div>
+          <div class="field"><label data-i18n="l_first"></label><input name="firstName" data-req placeholder="Jean"><div class="err-msg" data-i18n="e_req"></div></div>
+          <div class="field"><label data-i18n="l_last"></label><input name="lastName" data-req placeholder="Dupont"><div class="err-msg" data-i18n="e_req"></div></div>
         </div>
-        <div class="hint">Prénom + nom ≤ 23 caractères, lettres latines (A–Z).</div>
-        <label>Date de naissance</label>
-        <div class="field"><input name="dateOfBirth" type="date" data-req><div class="err-msg">Requis</div></div>
-        <label>Genre</label>
+        <div class="hint" data-i18n="h_name"></div>
+        <label data-i18n="l_dob"></label>
+        <div class="field"><input name="dateOfBirth" type="date" data-req><div class="err-msg" data-i18n="e_req"></div></div>
+        <label data-i18n="l_gender"></label>
         <div class="seg" id="genderSeg">
-          <button type="button" data-v="M">Homme</button>
-          <button type="button" data-v="F">Femme</button>
+          <button type="button" data-v="M" data-i18n="g_m"></button>
+          <button type="button" data-v="F" data-i18n="g_f"></button>
         </div>
         <input type="hidden" name="gender" data-req>
-        <div class="err-msg" id="genderErr">Choisis une option</div>
-        <label>Nationalité</label>
-        <div class="field"><input name="nationality" data-req maxlength="2" placeholder="FR" style="text-transform:uppercase"><div class="err-msg">Code pays 2 lettres (ex. FR)</div></div>
+        <div class="err-msg" id="genderErr" data-i18n="e_gender"></div>
+        <label data-i18n="l_nat"></label>
+        <div class="field"><input name="nationality" data-req maxlength="2" placeholder="FR" style="text-transform:uppercase"><div class="err-msg" data-i18n="e_2"></div></div>
       </section>
 
-      <!-- 2. Contact -->
-      <section class="panel" data-title="Contact">
-        <label>Email</label>
-        <div class="field"><input name="email" type="email" data-req placeholder="jean.dupont@email.com" autocomplete="email"><div class="err-msg">Email invalide</div></div>
-        <label>Téléphone</label>
+      <section class="panel" data-tk="s_contact">
+        <label data-i18n="l_email"></label>
+        <div class="field"><input name="email" type="email" data-req placeholder="name@email.com"><div class="err-msg" data-i18n="e_email"></div></div>
+        <label data-i18n="l_phone"></label>
         <div class="row">
-          <div class="field" style="max-width:96px"><input name="phoneCountryCode" data-req placeholder="33" inputmode="numeric"><div class="err-msg">Ind.</div></div>
-          <div class="field grow2"><input name="phoneNumber" data-req placeholder="612345678" inputmode="numeric"><div class="err-msg">Requis</div></div>
+          <div class="field" style="max-width:96px"><input name="phoneCountryCode" data-req placeholder="33" inputmode="numeric"><div class="err-msg" data-i18n="e_req"></div></div>
+          <div class="field grow2"><input name="phoneNumber" data-req placeholder="612345678" inputmode="numeric"><div class="err-msg" data-i18n="e_req"></div></div>
         </div>
-        <div class="hint">Indicatif sans « + » (ex. 33), puis le numéro sans l'indicatif.</div>
+        <div class="hint" data-i18n="h_phone"></div>
       </section>
 
-      <!-- 3. Adresse -->
-      <section class="panel" data-title="Adresse">
-        <label>Adresse</label>
-        <div class="field"><input name="addr_line1" data-req placeholder="123 Main St"><div class="err-msg">Requis</div></div>
-        <input name="addr_line2" placeholder="Apt, suite (optionnel)" style="margin-top:8px">
+      <section class="panel" data-tk="s_address">
+        <label data-i18n="l_addr"></label>
+        <div class="field"><input name="addr_line1" data-req placeholder="123 Main St"><div class="err-msg" data-i18n="e_req"></div></div>
+        <input name="addr_line2" data-i18n-ph="ph_line2" style="margin-top:8px">
         <div class="row">
-          <div class="field grow2"><label>Ville</label><input name="addr_city" data-req placeholder="New York"><div class="err-msg">Requis</div></div>
-          <div class="field"><label>État/Région</label><input name="addr_state" data-req maxlength="2" placeholder="NY" style="text-transform:uppercase"><div class="err-msg">2 lettres</div></div>
+          <div class="field grow2"><label data-i18n="l_city"></label><input name="addr_city" data-req placeholder="New York"><div class="err-msg" data-i18n="e_req"></div></div>
+          <div class="field"><label data-i18n="l_state"></label><input name="addr_state" data-req maxlength="2" placeholder="NY" style="text-transform:uppercase"><div class="err-msg" data-i18n="e_2"></div></div>
         </div>
         <div class="row">
-          <div class="field"><label>Code postal</label><input name="addr_postal" data-req placeholder="10001"><div class="err-msg">Requis</div></div>
-          <div class="field"><label>Pays</label><input name="addr_country" data-req maxlength="2" placeholder="US" style="text-transform:uppercase"><div class="err-msg">2 lettres</div></div>
+          <div class="field"><label data-i18n="l_postal"></label><input name="addr_postal" data-req placeholder="10001"><div class="err-msg" data-i18n="e_req"></div></div>
+          <div class="field"><label data-i18n="l_country"></label><input name="addr_country" data-req maxlength="2" placeholder="US" style="text-transform:uppercase"><div class="err-msg" data-i18n="e_2"></div></div>
         </div>
-        <div class="hint">⚠️ Le pays/état doivent correspondre au programme de la carte (état = code 2 lettres, ex. NY).</div>
+        <div class="hint" data-i18n="h_addr"></div>
       </section>
 
-      <!-- 4. Pièce d'identité -->
-      <section class="panel" data-title="Pièce d'identité">
+      <section class="panel" data-tk="s_id">
         <div class="row">
-          <div class="field grow2"><label>Type</label>
+          <div class="field grow2"><label data-i18n="l_idtype"></label>
             <select name="idType" data-req>
-              <option value="PASSPORT">Passeport</option>
-              <option value="Government-Issued ID Card">Carte d'identité</option>
-              <option value="DLN">Permis de conduire</option>
+              <option value="PASSPORT" data-i18n="t_passport"></option>
+              <option value="Government-Issued ID Card" data-i18n="t_idcard"></option>
+              <option value="DLN" data-i18n="t_dln"></option>
             </select></div>
-          <div class="field grow2"><label>N° du document</label><input name="nationalId" data-req placeholder="G12345678"><div class="err-msg">Requis</div></div>
+          <div class="field grow2"><label data-i18n="l_idnum"></label><input name="nationalId" data-req placeholder="G12345678"><div class="err-msg" data-i18n="e_req"></div></div>
         </div>
         <div class="row">
-          <div class="field"><label>Émis le</label><input name="issueDate" type="date"></div>
-          <div class="field"><label>Expire le</label><input name="expiryDate" type="date"></div>
+          <div class="field"><label data-i18n="l_issue"></label><input name="issueDate" type="date"></div>
+          <div class="field"><label data-i18n="l_expiry"></label><input name="expiryDate" type="date"></div>
         </div>
-        <label>Photo de la pièce — recto</label>
-        <div class="drop" id="d_idFront"><div class="ic">🪪</div><img><div class="tx"><b>Recto de la pièce</b><small>Photo nette, document entier dans le cadre</small></div></div>
+        <label data-i18n="l_idfront"></label>
+        <div class="drop" id="d_idFront"><div class="ic">🪪</div><img><div class="tx"><b data-i18n="d_front_t"></b><small data-i18n="d_front_s"></small></div></div>
         <input id="idFront" name="idFront" type="file" accept="image/*" capture="environment" class="hide" data-req>
-        <div class="err-msg" id="idFrontErr">Photo requise</div>
-        <label>Photo de la pièce — verso (si carte/permis)</label>
-        <div class="drop" id="d_idBack"><div class="ic">🪪</div><img><div class="tx"><b>Verso (optionnel)</b><small>Inutile pour un passeport</small></div></div>
+        <div class="err-msg" id="idFrontErr" data-i18n="e_photo"></div>
+        <label data-i18n="l_idback"></label>
+        <div class="drop" id="d_idBack"><div class="ic">🪪</div><img><div class="tx"><b data-i18n="d_back_t"></b><small data-i18n="d_back_s"></small></div></div>
         <input id="idBack" name="idBack" type="file" accept="image/*" capture="environment" class="hide">
       </section>
 
-      <!-- 5. Selfie -->
-      <section class="panel" data-title="Selfie">
-        <p class="hint" style="margin-top:8px">Prends un selfie net, visage bien visible, sans masque ni lunettes si possible. Pas de photo retouchée.</p>
-        <div class="drop" id="d_selfie" style="margin-top:10px"><div class="ic">🤳</div><img><div class="tx"><b>Prendre un selfie</b><small>Caméra frontale</small></div></div>
+      <section class="panel" data-tk="s_selfie">
+        <p class="hint" style="margin-top:8px" data-i18n="h_selfie"></p>
+        <div class="drop" id="d_selfie" style="margin-top:10px"><div class="ic">🤳</div><img><div class="tx"><b data-i18n="d_selfie_t"></b><small data-i18n="d_selfie_s"></small></div></div>
         <input id="selfie" name="selfie" type="file" accept="image/*" capture="user" class="hide" data-req>
-        <div class="err-msg" id="selfieErr">Selfie requis</div>
+        <div class="err-msg" id="selfieErr" data-i18n="e_photo"></div>
       </section>
 
-      <!-- 6. Récap -->
-      <section class="panel" data-title="Vérification">
-        <p class="hint" style="margin-top:8px">Vérifie tes informations avant l'envoi.</p>
+      <section class="panel" data-tk="s_review">
+        <p class="hint" style="margin-top:8px" data-i18n="h_review"></p>
         <div class="recap" id="recap"></div>
       </section>
 
     </div></div>
   </main>
 
-  <div class="fab" id="fab"><button id="next">Continuer</button></div>
-
-  <!-- Écran final -->
+  <div class="fab hide" id="fab"><button id="next"></button></div>
   <div id="done" class="final hide"></div>
 
 <script>
+const I18N={
+  en:{title:"Identity verification",subtitle:"A few steps to get your card. Data encrypted, verified by Interlace.",
+    s_identity:"Identity",s_contact:"Contact",s_address:"Address",s_id:"ID document",s_selfie:"Selfie",s_review:"Review",
+    l_first:"First name",l_last:"Last name",l_dob:"Date of birth",l_gender:"Gender",g_m:"Male",g_f:"Female",l_nat:"Nationality",
+    l_email:"Email",l_phone:"Phone",l_addr:"Address",l_city:"City",l_state:"State/Region",l_postal:"Postal code",l_country:"Country",
+    l_idtype:"Type",l_idnum:"Document no.",l_issue:"Issued on",l_expiry:"Expires on",l_idfront:"ID photo — front",l_idback:"ID photo — back (if card/licence)",
+    t_passport:"Passport",t_idcard:"ID card",t_dln:"Driver's licence",
+    h_name:"First + last name ≤ 23 chars, Latin letters (A–Z).",h_phone:"Dialing code without “+” (e.g. 33), then number without it.",
+    h_addr:"⚠️ Country/state must match the card program (state = 2-letter code, e.g. NY).",h_selfie:"Take a clear selfie, face fully visible, no mask/glasses if possible. No edited photo.",
+    h_review:"Check your information before sending.",ph_line2:"Apt, suite (optional)",
+    d_front_t:"Front of the document",d_front_s:"Sharp photo, whole document in frame",d_back_t:"Back (optional)",d_back_s:"Not needed for a passport",
+    d_selfie_t:"Take a selfie",d_selfie_s:"Front camera",
+    btn_continue:"Continue",btn_submit:"Submit verification",btn_retry:"Retry",step:"Step",
+    e_req:"Required",e_email:"Invalid email",e_2:"2-letter code",e_gender:"Pick one",e_photo:"Photo required",
+    r_name:"Name",r_dob:"Birth",r_gender:"Gender",r_nat:"Nationality",r_email:"Email",r_phone:"Phone",r_addr:"Address",r_id:"Document",r_docs:"Files",
+    sending_t:"Sending…",sending_p:"Checking your file.",sent_t:"Verification sent!",sent_p:"You'll be notified once approved. You can then create your card.",
+    fail_t:"Failed",neterr_t:"Network error",idmiss_t:"Missing ID",idmiss_p:"Reopen the form from the bot."},
+  fr:{title:"Vérification d'identité",subtitle:"Quelques étapes pour obtenir ta carte. Données chiffrées, vérifiées par Interlace.",
+    s_identity:"Identité",s_contact:"Contact",s_address:"Adresse",s_id:"Pièce d'identité",s_selfie:"Selfie",s_review:"Vérification",
+    l_first:"Prénom",l_last:"Nom",l_dob:"Date de naissance",l_gender:"Genre",g_m:"Homme",g_f:"Femme",l_nat:"Nationalité",
+    l_email:"Email",l_phone:"Téléphone",l_addr:"Adresse",l_city:"Ville",l_state:"État/Région",l_postal:"Code postal",l_country:"Pays",
+    l_idtype:"Type",l_idnum:"N° du document",l_issue:"Émis le",l_expiry:"Expire le",l_idfront:"Photo de la pièce — recto",l_idback:"Photo de la pièce — verso (si carte/permis)",
+    t_passport:"Passeport",t_idcard:"Carte d'identité",t_dln:"Permis de conduire",
+    h_name:"Prénom + nom ≤ 23 caractères, lettres latines (A–Z).",h_phone:"Indicatif sans « + » (ex. 33), puis le numéro sans l'indicatif.",
+    h_addr:"⚠️ Le pays/état doivent correspondre au programme de la carte (état = code 2 lettres, ex. NY).",h_selfie:"Selfie net, visage bien visible, sans masque ni lunettes si possible. Pas de photo retouchée.",
+    h_review:"Vérifie tes informations avant l'envoi.",ph_line2:"Apt, suite (optionnel)",
+    d_front_t:"Recto de la pièce",d_front_s:"Photo nette, document entier dans le cadre",d_back_t:"Verso (optionnel)",d_back_s:"Inutile pour un passeport",
+    d_selfie_t:"Prendre un selfie",d_selfie_s:"Caméra frontale",
+    btn_continue:"Continuer",btn_submit:"Envoyer ma vérification",btn_retry:"Réessayer",step:"Étape",
+    e_req:"Requis",e_email:"Email invalide",e_2:"Code 2 lettres",e_gender:"Choisis une option",e_photo:"Photo requise",
+    r_name:"Nom",r_dob:"Naissance",r_gender:"Genre",r_nat:"Nationalité",r_email:"Email",r_phone:"Téléphone",r_addr:"Adresse",r_id:"Pièce",r_docs:"Fichiers",
+    sending_t:"Envoi en cours…",sending_p:"Vérification de ton dossier.",sent_t:"Vérification envoyée !",sent_p:"Tu seras notifié dès la validation. Tu pourras alors créer ta carte.",
+    fail_t:"Échec",neterr_t:"Erreur réseau",idmiss_t:"Identifiant manquant",idmiss_p:"Rouvre le formulaire depuis le bot."},
+  ru:{title:"Подтверждение личности",subtitle:"Несколько шагов для получения карты. Данные зашифрованы, проверка через Interlace.",
+    s_identity:"Личные данные",s_contact:"Контакты",s_address:"Адрес",s_id:"Документ",s_selfie:"Селфи",s_review:"Проверка",
+    l_first:"Имя",l_last:"Фамилия",l_dob:"Дата рождения",l_gender:"Пол",g_m:"Мужской",g_f:"Женский",l_nat:"Гражданство",
+    l_email:"Эл. почта",l_phone:"Телефон",l_addr:"Адрес",l_city:"Город",l_state:"Штат/Регион",l_postal:"Индекс",l_country:"Страна",
+    l_idtype:"Тип",l_idnum:"№ документа",l_issue:"Выдан",l_expiry:"Действует до",l_idfront:"Фото документа — лицевая",l_idback:"Фото документа — оборот (если карта/права)",
+    t_passport:"Паспорт",t_idcard:"Удостоверение",t_dln:"Водительские права",
+    h_name:"Имя + фамилия ≤ 23 символов, латиница (A–Z).",h_phone:"Код страны без «+» (напр. 7), затем номер без кода.",
+    h_addr:"⚠️ Страна/штат должны соответствовать программе карты (штат = код из 2 букв, напр. NY).",h_selfie:"Чёткое селфи, лицо полностью видно, без маски/очков по возможности. Без обработки.",
+    h_review:"Проверьте данные перед отправкой.",ph_line2:"Кв., офис (необязательно)",
+    d_front_t:"Лицевая сторона",d_front_s:"Чёткое фото, документ целиком в кадре",d_back_t:"Оборот (необязательно)",d_back_s:"Не нужно для паспорта",
+    d_selfie_t:"Сделать селфи",d_selfie_s:"Фронтальная камера",
+    btn_continue:"Продолжить",btn_submit:"Отправить проверку",btn_retry:"Повторить",step:"Шаг",
+    e_req:"Обязательно",e_email:"Неверный email",e_2:"Код 2 буквы",e_gender:"Выберите",e_photo:"Нужно фото",
+    r_name:"Имя",r_dob:"Рождение",r_gender:"Пол",r_nat:"Гражданство",r_email:"Email",r_phone:"Телефон",r_addr:"Адрес",r_id:"Документ",r_docs:"Файлы",
+    sending_t:"Отправка…",sending_p:"Проверка вашей заявки.",sent_t:"Проверка отправлена!",sent_p:"Вы получите уведомление после одобрения. Затем сможете создать карту.",
+    fail_t:"Ошибка",neterr_t:"Ошибка сети",idmiss_t:"Нет идентификатора",idmiss_p:"Откройте форму заново из бота."},
+};
 const tg = window.Telegram?.WebApp; if(tg){tg.ready(); tg.expand();}
 const qs = new URLSearchParams(location.search);
 const uid = qs.get('uid') || tg?.initDataUnsafe?.user?.id || '';
+let lang = (qs.get('lang') || tg?.initDataUnsafe?.user?.language_code || 'en').slice(0,2).toLowerCase();
+if(!I18N[lang]) lang='en';
+const T = I18N[lang];
+document.documentElement.lang=lang;
+const t=k=>T[k]||k;
+// applique les traductions
+document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));
+document.querySelectorAll('[data-i18n-ph]').forEach(e=>e.placeholder=t(e.dataset.i18nPh));
 
 const panels=[...document.querySelectorAll('.panel')];
-const track=document.getElementById('track');
-const bars=document.getElementById('bars');
-panels.forEach(()=>bars.insertAdjacentHTML('beforeend','<i></i>'));
-const barEls=[...bars.children];
+const track=document.getElementById('track'); const bars=document.getElementById('bars');
+panels.forEach(()=>bars.insertAdjacentHTML('beforeend','<i></i>')); const barEls=[...bars.children];
 let step=0; const LAST=panels.length-1;
+const useMain = !!tg?.MainButton;       // un seul bouton : MainButton si dispo, sinon .fab
+if(!useMain) document.getElementById('fab').classList.remove('hide');
 
-// genre segmented
 const seg=document.getElementById('genderSeg'); const genderInput=document.querySelector('input[name=gender]');
 seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{
   seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
-  genderInput.value=b.dataset.v; document.getElementById('genderErr').classList.remove('show');
-});
+  genderInput.value=b.dataset.v; document.getElementById('genderErr').classList.remove('show');});
 
-// dropzones
-function bindDrop(id){
-  const inp=document.getElementById(id), zone=document.getElementById('d_'+id), img=zone.querySelector('img');
+function bindDrop(id){const inp=document.getElementById(id),zone=document.getElementById('d_'+id),img=zone.querySelector('img');
   zone.onclick=()=>inp.click();
-  inp.onchange=()=>{ const f=inp.files[0]; if(!f)return;
-    zone.classList.add('filled'); img.src=URL.createObjectURL(f);
-    (document.getElementById(id+'Err')||{classList:{remove(){}}}).classList.remove('show');
-  };
-}
+  inp.onchange=()=>{const f=inp.files[0]; if(!f)return; zone.classList.add('filled'); img.src=URL.createObjectURL(f);
+    (document.getElementById(id+'Err')||{classList:{remove(){}}}).classList.remove('show');};}
 ['idFront','idBack','selfie'].forEach(bindDrop);
 
 function render(){
   track.style.transform=`translateX(-${step*100}%)`;
   panels.forEach((p,i)=>p.classList.toggle('active',i===step));
-  barEls.forEach((b,i)=>{b.className=i<step?'done':(i===step?'cur':'')});
-  document.getElementById('stepTitle').textContent=panels[step].dataset.title;
-  document.getElementById('stepCount').textContent=`Étape ${step+1} / ${panels.length}`;
+  barEls.forEach((b,i)=>b.className=i<step?'done':(i===step?'cur':''));
+  document.getElementById('stepTitle').textContent=t(panels[step].dataset.tk);
+  document.getElementById('stepCount').textContent=`${t('step')} ${step+1} / ${panels.length}`;
   if(step===LAST) buildRecap();
-  setMainBtn();
+  const label = step===LAST ? t('btn_submit') : t('btn_continue');
+  document.getElementById('next').textContent=label;
+  if(useMain){ tg.MainButton.setText(label); tg.MainButton.show(); tg.MainButton.enable(); }
   if(tg?.BackButton){ step>0?tg.BackButton.show():tg.BackButton.hide(); }
   window.scrollTo({top:0,behavior:'smooth'});
 }
-
-function setMainBtn(){
-  const label = step===LAST ? "Envoyer ma vérification" : "Continuer";
-  document.getElementById('next').textContent=label;
-  if(tg?.MainButton){ tg.MainButton.setText(label); tg.MainButton.show(); tg.MainButton.enable(); }
-}
-
 function validStep(){
   let ok=true;
   panels[step].querySelectorAll('[data-req]').forEach(el=>{
     let bad=false; const v=(el.value||'').trim();
     if(!v) bad=true;
-    if(el.name==='email' && v && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) bad=true;
-    if((el.name==='nationality'||el.name==='addr_country'||el.name==='addr_state') && v && v.length>2) bad=true;
-    if(el.type==='file' && el.files.length===0) bad=true;
-    if(bad){ ok=false;
-      if(el.type!=='hidden'&&el.type!=='file') el.classList.add('bad');
-      const em = el.parentElement.querySelector('.err-msg') || document.getElementById(el.name+'Err') || document.getElementById((el.id||'')+'Err');
-      if(em) em.classList.add('show');
-    }
-  });
+    if(el.name==='email'&&v&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) bad=true;
+    if((el.name==='nationality'||el.name==='addr_country'||el.name==='addr_state')&&v&&v.length>2) bad=true;
+    if(el.type==='file'&&el.files.length===0) bad=true;
+    if(bad){ ok=false; if(el.type!=='hidden'&&el.type!=='file') el.classList.add('bad');
+      const em=el.parentElement.querySelector('.err-msg')||document.getElementById((el.name||el.id)+'Err')||document.getElementById((el.id||'')+'Err');
+      if(em) em.classList.add('show'); }});
   return ok;
 }
-// clear error on input
-document.addEventListener('input',e=>{ if(e.target.classList){e.target.classList.remove('bad');
+document.addEventListener('input',e=>{if(e.target.classList){e.target.classList.remove('bad');
   const em=e.target.parentElement?.querySelector('.err-msg'); if(em)em.classList.remove('show');}});
-
 function buildRecap(){
   const g=v=>document.querySelector(`[name="${v}"]`)?.value||'—';
-  const gd=genderInput.value==='F'?'Femme':(genderInput.value==='M'?'Homme':'—');
-  const rows=[
-    ['Nom', `${g('firstName')} ${g('lastName')}`],['Naissance', g('dateOfBirth')],['Genre', gd],
-    ['Nationalité', g('nationality')],['Email', g('email')],['Téléphone', `+${g('phoneCountryCode')} ${g('phoneNumber')}`],
-    ['Adresse', `${g('addr_line1')}, ${g('addr_city')} ${g('addr_state')} ${g('addr_postal')}, ${g('addr_country')}`],
-    ['Pièce', `${document.querySelector('[name=idType]').selectedOptions[0].text} · ${g('nationalId')}`],
-    ['Documents', `${document.getElementById('idFront').files.length?'recto ✓':'—'} ${document.getElementById('idBack').files.length?'verso ✓':''} ${document.getElementById('selfie').files.length?'selfie ✓':''}`],
-  ];
+  const gd=genderInput.value==='F'?t('g_f'):(genderInput.value==='M'?t('g_m'):'—');
+  const rows=[[t('r_name'),`${g('firstName')} ${g('lastName')}`],[t('r_dob'),g('dateOfBirth')],[t('r_gender'),gd],
+    [t('r_nat'),g('nationality')],[t('r_email'),g('email')],[t('r_phone'),`+${g('phoneCountryCode')} ${g('phoneNumber')}`],
+    [t('r_addr'),`${g('addr_line1')}, ${g('addr_city')} ${g('addr_state')} ${g('addr_postal')}, ${g('addr_country')}`],
+    [t('r_id'),`${document.querySelector('[name=idType]').selectedOptions[0].text} · ${g('nationalId')}`],
+    [t('r_docs'),`${document.getElementById('idFront').files.length?'✓':'—'} ${document.getElementById('idBack').files.length?'✓':''} ${document.getElementById('selfie').files.length?'🤳':''}`]];
   document.getElementById('recap').innerHTML=rows.map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join('');
 }
-
-async function advance(){
-  if(!validStep()){ tg?.HapticFeedback?.notificationOccurred?.('error'); return; }
-  if(step<LAST){ step++; render(); return; }
-  await submit();
-}
+async function advance(){ if(!validStep()){ tg?.HapticFeedback?.notificationOccurred?.('error'); return; }
+  if(step<LAST){ step++; render(); return; } await submit(); }
 document.getElementById('next').onclick=advance;
-if(tg?.MainButton) tg.MainButton.onClick(advance);
+if(useMain) tg.MainButton.onClick(advance);
 if(tg?.BackButton) tg.BackButton.onClick(()=>{ if(step>0){step--; render();} });
-
 async function submit(){
-  if(!uid){ showFinal('⚠️','Identifiant manquant','Rouvre le formulaire depuis le bot.'); return; }
-  document.getElementById('wizard').classList.add('hide');
-  document.getElementById('fab').classList.add('hide');
-  if(tg?.MainButton) tg.MainButton.hide();
-  showFinal('<div class="spin"></div>','Envoi en cours…','Vérification de ton dossier.');
+  if(!uid){ showFinal('⚠️',t('idmiss_t'),t('idmiss_p')); return; }
+  document.getElementById('wizard').classList.add('hide'); document.getElementById('fab').classList.add('hide');
+  if(useMain) tg.MainButton.hide(); if(tg?.BackButton) tg.BackButton.hide();
+  showFinal('<div class="spin"></div>',t('sending_t'),t('sending_p'));
   const fd=new FormData();
-  document.querySelectorAll('[name]').forEach(el=>{
-    if(el.type==='file'){ if(el.files[0]) fd.append(el.name, el.files[0]); }
-    else if(el.value) fd.append(el.name, el.value);
-  });
-  fd.append('uid', uid); if(tg?.initData) fd.append('initData', tg.initData);
-  try{
-    const r=await fetch('/api/kyc_submit',{method:'POST',body:fd});
-    const j=await r.json();
-    if(j.success){ tg?.HapticFeedback?.notificationOccurred?.('success');
-      showFinal('✅','Vérification envoyée !','Tu seras notifié dès la validation. Tu pourras alors créer ta carte.');
-      if(tg) setTimeout(()=>tg.close(),3200);
-    } else { showFinal('⚠️','Échec','«'+(j.message||'Erreur')+'»'); retryBtn(); }
-  }catch(e){ showFinal('⚠️','Erreur réseau', String(e)); retryBtn(); }
+  document.querySelectorAll('[name]').forEach(el=>{ if(el.type==='file'){ if(el.files[0]) fd.append(el.name,el.files[0]); }
+    else if(el.value) fd.append(el.name,el.value); });
+  fd.append('uid',uid); if(tg?.initData) fd.append('initData',tg.initData);
+  try{ const r=await fetch('/api/kyc_submit',{method:'POST',body:fd}); const j=await r.json();
+    if(j.success){ tg?.HapticFeedback?.notificationOccurred?.('success'); showFinal('✅',t('sent_t'),t('sent_p')); if(tg) setTimeout(()=>tg.close(),3200); }
+    else { showFinal('⚠️',t('fail_t'),'«'+(j.message||'Error')+'»'); retryBtn(); } }
+  catch(e){ showFinal('⚠️',t('neterr_t'),String(e)); retryBtn(); }
 }
 function showFinal(emoji,h2,p){ const d=document.getElementById('done'); d.classList.remove('hide');
   d.innerHTML=`<div class="emoji">${emoji}</div><h2>${h2}</h2><p>${p}</p><div id="rb"></div>`; }
-function retryBtn(){ document.getElementById('rb').innerHTML='<button onclick="location.reload()" style="margin-top:18px;padding:14px 22px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-text);font-weight:700">Réessayer</button>'; }
-
+function retryBtn(){ document.getElementById('rb').innerHTML=`<button onclick="location.reload()" style="margin-top:18px;padding:14px 22px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-text);font-weight:700">${t('btn_retry')}</button>`; }
 render();
 </script>
 </body>
