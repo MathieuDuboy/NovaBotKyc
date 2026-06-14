@@ -2,119 +2,318 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>Vérification d'identité</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-  :root { color-scheme: light dark; }
-  body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 16px;
-         background: var(--tg-theme-bg-color, #fff); color: var(--tg-theme-text-color, #111); }
-  h1 { font-size: 19px; margin: 4px 0 2px; }
-  p.sub { font-size: 13px; opacity: .7; margin: 0 0 16px; }
-  label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 4px; }
-  input, select { width: 100%; box-sizing: border-box; padding: 11px; font-size: 15px;
-          border: 1px solid #ccc; border-radius: 10px; background: var(--tg-theme-bg-color,#fff);
-          color: var(--tg-theme-text-color,#111); }
-  .row { display: flex; gap: 10px; } .row > div { flex: 1; }
-  .file { padding: 14px; border: 1px dashed #999; border-radius: 10px; text-align: center;
-          font-size: 14px; margin-top: 4px; }
-  .file.ok { border-color: #2ecc71; color: #2ecc71; }
-  button { width: 100%; padding: 15px; font-size: 16px; font-weight: 700; margin-top: 22px;
-           border: 0; border-radius: 12px; background: var(--tg-theme-button-color,#2481cc);
-           color: var(--tg-theme-button-text-color,#fff); }
-  button:disabled { opacity: .5; }
-  #msg { margin-top: 14px; font-size: 14px; text-align: center; min-height: 18px; }
-  .err { color: #e74c3c; } .okmsg { color: #2ecc71; }
+  :root{
+    --bg: var(--tg-theme-bg-color, #0f1115);
+    --card: var(--tg-theme-secondary-bg-color, #1b1e26);
+    --text: var(--tg-theme-text-color, #f3f4f6);
+    --hint: var(--tg-theme-hint-color, #8b90a0);
+    --accent: var(--tg-theme-button-color, #3b82f6);
+    --accent-text: var(--tg-theme-button-text-color, #fff);
+    --border: rgba(255,255,255,.10);
+    --ok:#22c55e; --err:#ef4444; --radius:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;}
+  body{padding:0 18px 120px; max-width:520px; margin:0 auto;}
+
+  /* En-tête + progression */
+  header{position:sticky; top:0; background:var(--bg); padding:18px 0 12px; z-index:5;}
+  .title{font-size:20px; font-weight:800; letter-spacing:-.3px; margin:0;}
+  .subtitle{font-size:13px; color:var(--hint); margin:4px 0 14px;}
+  .steps{display:flex; gap:6px;}
+  .steps i{flex:1; height:4px; border-radius:99px; background:var(--border); transition:.3s;}
+  .steps i.done{background:var(--accent);} .steps i.cur{background:var(--accent); opacity:.55;}
+  .stepmeta{display:flex; justify-content:space-between; align-items:baseline; margin-top:10px;}
+  .stepmeta b{font-size:16px; font-weight:700;} .stepmeta span{font-size:12px; color:var(--hint);}
+
+  /* Panneaux (slides) */
+  .viewport{overflow:hidden;}
+  .track{display:flex; transition:transform .35s cubic-bezier(.4,0,.2,1);}
+  .panel{min-width:100%; padding:6px 2px 2px; opacity:.4; transition:opacity .35s;}
+  .panel.active{opacity:1;}
+
+  label{display:block; font-size:12.5px; font-weight:600; color:var(--hint);
+    margin:14px 2px 6px; text-transform:uppercase; letter-spacing:.4px;}
+  .field{position:relative;}
+  input,select{width:100%; padding:14px 14px; font-size:16px; color:var(--text);
+    background:var(--card); border:1.5px solid var(--border); border-radius:12px; outline:none;
+    transition:border-color .15s, box-shadow .15s; appearance:none;}
+  input:focus,select:focus{border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent);}
+  input.bad,select.bad{border-color:var(--err);}
+  select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238b90a0' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat; background-position:right 14px center; padding-right:38px;}
+  .row{display:flex; gap:10px;} .row>*{flex:1;} .row .grow2{flex:2;}
+  .hint{font-size:11.5px; color:var(--hint); margin:5px 2px 0;}
+
+  /* Segmented (genre) */
+  .seg{display:flex; gap:8px;}
+  .seg button{flex:1; padding:13px; border:1.5px solid var(--border); background:var(--card);
+    color:var(--text); border-radius:12px; font-size:15px; font-weight:600;}
+  .seg button.on{border-color:var(--accent); background:color-mix(in srgb,var(--accent) 16%,transparent);}
+
+  /* Dropzone fichiers */
+  .drop{display:flex; align-items:center; gap:14px; padding:16px; border:1.5px dashed var(--border);
+    border-radius:14px; background:var(--card); cursor:pointer; transition:.15s;}
+  .drop:active{transform:scale(.99);}
+  .drop.filled{border-style:solid; border-color:var(--ok);}
+  .drop .ic{width:46px; height:46px; flex:none; border-radius:12px; display:grid; place-items:center;
+    background:color-mix(in srgb,var(--accent) 18%,transparent); font-size:22px;}
+  .drop .tx b{display:block; font-size:14.5px; font-weight:700;}
+  .drop .tx small{color:var(--hint); font-size:12px;}
+  .drop img{width:46px; height:46px; border-radius:12px; object-fit:cover; flex:none; display:none;}
+  .drop.filled img{display:block;} .drop.filled .ic{display:none;}
+
+  .err-msg{color:var(--err); font-size:12px; margin:6px 2px 0; display:none;}
+  .err-msg.show{display:block;}
+
+  /* Récap */
+  .recap{background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden;}
+  .recap div{display:flex; justify-content:space-between; gap:12px; padding:11px 14px; font-size:13.5px; border-top:1px solid var(--border);}
+  .recap div:first-child{border-top:0;} .recap span{color:var(--hint);} .recap b{font-weight:600; text-align:right; word-break:break-word;}
+
+  /* Bouton bas (fallback si pas de MainButton Telegram) */
+  .fab{position:fixed; left:0; right:0; bottom:0; padding:14px 18px calc(14px + env(safe-area-inset-bottom));
+    background:linear-gradient(transparent,var(--bg) 22%); max-width:520px; margin:0 auto;}
+  .fab button{width:100%; padding:16px; border:0; border-radius:14px; background:var(--accent);
+    color:var(--accent-text); font-size:16px; font-weight:800;}
+  .fab button:disabled{opacity:.5;}
+
+  /* États final */
+  .final{text-align:center; padding:40px 10px;}
+  .final .emoji{font-size:54px;} .final h2{margin:14px 0 6px; font-size:20px;}
+  .final p{color:var(--hint); font-size:14px; line-height:1.5;}
+  .spin{width:42px;height:42px;border:4px solid var(--border);border-top-color:var(--accent);
+    border-radius:50%;animation:spin 1s linear infinite;margin:0 auto;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .hide{display:none!important;}
 </style>
 </head>
 <body>
-  <h1>Vérification d'identité</h1>
-  <p class="sub">Pour obtenir ta carte, renseigne tes informations et ajoute une pièce d'identité + un selfie. Vérification gérée par Interlace.</p>
+  <header>
+    <h1 class="title">Vérification d'identité</h1>
+    <p class="subtitle">Quelques étapes pour obtenir ta carte. Données chiffrées, vérifiées par Interlace.</p>
+    <div class="steps" id="bars"></div>
+    <div class="stepmeta"><b id="stepTitle"></b><span id="stepCount"></span></div>
+  </header>
 
-  <form id="f">
-    <div class="row">
-      <div><label>Prénom</label><input name="firstName" required pattern="[A-Za-z ]+" title="Lettres latines uniquement" /></div>
-      <div><label>Nom</label><input name="lastName" required pattern="[A-Za-z ]+" /></div>
-    </div>
-    <label>Email</label><input name="email" type="email" required />
-    <label>Date de naissance</label><input name="dateOfBirth" type="date" required />
-    <div class="row">
-      <div><label>Genre</label>
-        <select name="gender" required><option value="">—</option><option value="MALE">Homme</option><option value="FEMALE">Femme</option></select></div>
-      <div><label>Nationalité (ISO, ex. FR)</label><input name="nationality" required maxlength="2" style="text-transform:uppercase" /></div>
-    </div>
-    <div class="row">
-      <div><label>Indicatif</label><input name="phoneCountryCode" required placeholder="33" /></div>
-      <div><label>Téléphone</label><input name="phoneNumber" required placeholder="612345678" /></div>
-    </div>
-    <div class="row">
-      <div><label>Type de pièce</label>
-        <select name="idType" required><option value="PASSPORT">Passeport</option><option value="ID_CARD">Carte d'identité</option></select></div>
-      <div><label>N° de pièce</label><input name="nationalId" required /></div>
-    </div>
-    <div class="row">
-      <div><label>Émise le</label><input name="issueDate" type="date" /></div>
-      <div><label>Expire le</label><input name="expiryDate" type="date" /></div>
-    </div>
-    <label>Adresse</label><input name="addr_line1" placeholder="Rue" required />
-    <div class="row">
-      <div><input name="addr_city" placeholder="Ville" required /></div>
-      <div><input name="addr_postal" placeholder="Code postal" required /></div>
-    </div>
-    <input name="addr_country" placeholder="Pays (ISO, ex. FR)" maxlength="2" required style="text-transform:uppercase;margin-top:10px" />
+  <main id="wizard">
+    <div class="viewport"><div class="track" id="track">
 
-    <label>Pièce d'identité — recto</label>
-    <input id="idFront" name="idFront" type="file" accept="image/*" capture="environment" required hidden />
-    <div class="file" id="idFrontLbl" onclick="idFront.click()">📷 Photographier / choisir le recto</div>
+      <!-- 1. Identité -->
+      <section class="panel" data-title="Identité">
+        <div class="row">
+          <div class="field"><label>Prénom</label><input name="firstName" data-req placeholder="Jean" autocomplete="given-name"><div class="err-msg">Requis (lettres latines)</div></div>
+          <div class="field"><label>Nom</label><input name="lastName" data-req placeholder="Dupont" autocomplete="family-name"><div class="err-msg">Requis</div></div>
+        </div>
+        <div class="hint">Prénom + nom ≤ 23 caractères, lettres latines (A–Z).</div>
+        <label>Date de naissance</label>
+        <div class="field"><input name="dateOfBirth" type="date" data-req><div class="err-msg">Requis</div></div>
+        <label>Genre</label>
+        <div class="seg" id="genderSeg">
+          <button type="button" data-v="M">Homme</button>
+          <button type="button" data-v="F">Femme</button>
+        </div>
+        <input type="hidden" name="gender" data-req>
+        <div class="err-msg" id="genderErr">Choisis une option</div>
+        <label>Nationalité</label>
+        <div class="field"><input name="nationality" data-req maxlength="2" placeholder="FR" style="text-transform:uppercase"><div class="err-msg">Code pays 2 lettres (ex. FR)</div></div>
+      </section>
 
-    <label>Pièce d'identité — verso (si carte d'identité)</label>
-    <input id="idBack" name="idBack" type="file" accept="image/*" capture="environment" hidden />
-    <div class="file" id="idBackLbl" onclick="idBack.click()">📷 Verso (optionnel)</div>
+      <!-- 2. Contact -->
+      <section class="panel" data-title="Contact">
+        <label>Email</label>
+        <div class="field"><input name="email" type="email" data-req placeholder="jean.dupont@email.com" autocomplete="email"><div class="err-msg">Email invalide</div></div>
+        <label>Téléphone</label>
+        <div class="row">
+          <div class="field" style="max-width:96px"><input name="phoneCountryCode" data-req placeholder="33" inputmode="numeric"><div class="err-msg">Ind.</div></div>
+          <div class="field grow2"><input name="phoneNumber" data-req placeholder="612345678" inputmode="numeric"><div class="err-msg">Requis</div></div>
+        </div>
+        <div class="hint">Indicatif sans « + » (ex. 33), puis le numéro sans l'indicatif.</div>
+      </section>
 
-    <label>Selfie</label>
-    <input id="selfie" name="selfie" type="file" accept="image/*" capture="user" required hidden />
-    <div class="file" id="selfieLbl" onclick="selfie.click()">🤳 Prendre un selfie</div>
+      <!-- 3. Adresse -->
+      <section class="panel" data-title="Adresse">
+        <label>Adresse</label>
+        <div class="field"><input name="addr_line1" data-req placeholder="123 Main St"><div class="err-msg">Requis</div></div>
+        <input name="addr_line2" placeholder="Apt, suite (optionnel)" style="margin-top:8px">
+        <div class="row">
+          <div class="field grow2"><label>Ville</label><input name="addr_city" data-req placeholder="New York"><div class="err-msg">Requis</div></div>
+          <div class="field"><label>État/Région</label><input name="addr_state" data-req maxlength="2" placeholder="NY" style="text-transform:uppercase"><div class="err-msg">2 lettres</div></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Code postal</label><input name="addr_postal" data-req placeholder="10001"><div class="err-msg">Requis</div></div>
+          <div class="field"><label>Pays</label><input name="addr_country" data-req maxlength="2" placeholder="US" style="text-transform:uppercase"><div class="err-msg">2 lettres</div></div>
+        </div>
+        <div class="hint">⚠️ Le pays/état doivent correspondre au programme de la carte (état = code 2 lettres, ex. NY).</div>
+      </section>
 
-    <button id="submit" type="submit">Envoyer ma vérification</button>
-    <div id="msg"></div>
-  </form>
+      <!-- 4. Pièce d'identité -->
+      <section class="panel" data-title="Pièce d'identité">
+        <div class="row">
+          <div class="field grow2"><label>Type</label>
+            <select name="idType" data-req>
+              <option value="PASSPORT">Passeport</option>
+              <option value="Government-Issued ID Card">Carte d'identité</option>
+              <option value="DLN">Permis de conduire</option>
+            </select></div>
+          <div class="field grow2"><label>N° du document</label><input name="nationalId" data-req placeholder="G12345678"><div class="err-msg">Requis</div></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Émis le</label><input name="issueDate" type="date"></div>
+          <div class="field"><label>Expire le</label><input name="expiryDate" type="date"></div>
+        </div>
+        <label>Photo de la pièce — recto</label>
+        <div class="drop" id="d_idFront"><div class="ic">🪪</div><img><div class="tx"><b>Recto de la pièce</b><small>Photo nette, document entier dans le cadre</small></div></div>
+        <input id="idFront" name="idFront" type="file" accept="image/*" capture="environment" class="hide" data-req>
+        <div class="err-msg" id="idFrontErr">Photo requise</div>
+        <label>Photo de la pièce — verso (si carte/permis)</label>
+        <div class="drop" id="d_idBack"><div class="ic">🪪</div><img><div class="tx"><b>Verso (optionnel)</b><small>Inutile pour un passeport</small></div></div>
+        <input id="idBack" name="idBack" type="file" accept="image/*" capture="environment" class="hide">
+      </section>
+
+      <!-- 5. Selfie -->
+      <section class="panel" data-title="Selfie">
+        <p class="hint" style="margin-top:8px">Prends un selfie net, visage bien visible, sans masque ni lunettes si possible. Pas de photo retouchée.</p>
+        <div class="drop" id="d_selfie" style="margin-top:10px"><div class="ic">🤳</div><img><div class="tx"><b>Prendre un selfie</b><small>Caméra frontale</small></div></div>
+        <input id="selfie" name="selfie" type="file" accept="image/*" capture="user" class="hide" data-req>
+        <div class="err-msg" id="selfieErr">Selfie requis</div>
+      </section>
+
+      <!-- 6. Récap -->
+      <section class="panel" data-title="Vérification">
+        <p class="hint" style="margin-top:8px">Vérifie tes informations avant l'envoi.</p>
+        <div class="recap" id="recap"></div>
+      </section>
+
+    </div></div>
+  </main>
+
+  <div class="fab" id="fab"><button id="next">Continuer</button></div>
+
+  <!-- Écran final -->
+  <div id="done" class="final hide"></div>
 
 <script>
-  const tg = window.Telegram?.WebApp; if (tg) { tg.ready(); tg.expand(); }
-  const qs = new URLSearchParams(location.search);
-  const uid = qs.get('uid') || tg?.initDataUnsafe?.user?.id || '';
+const tg = window.Telegram?.WebApp; if(tg){tg.ready(); tg.expand();}
+const qs = new URLSearchParams(location.search);
+const uid = qs.get('uid') || tg?.initDataUnsafe?.user?.id || '';
 
-  function bindFile(id) {
-    const inp = document.getElementById(id), lbl = document.getElementById(id + 'Lbl');
-    inp.addEventListener('change', () => {
-      if (inp.files.length) { lbl.classList.add('ok'); lbl.textContent = '✓ ' + inp.files[0].name; }
-    });
-  }
-  ['idFront','idBack','selfie'].forEach(bindFile);
+const panels=[...document.querySelectorAll('.panel')];
+const track=document.getElementById('track');
+const bars=document.getElementById('bars');
+panels.forEach(()=>bars.insertAdjacentHTML('beforeend','<i></i>'));
+const barEls=[...bars.children];
+let step=0; const LAST=panels.length-1;
 
-  document.getElementById('f').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const msg = document.getElementById('msg'), btn = document.getElementById('submit');
-    msg.className = ''; msg.textContent = '';
-    if (!uid) { msg.className='err'; msg.textContent = "Identifiant utilisateur manquant."; return; }
-    const fd = new FormData(e.target);
-    fd.append('uid', uid);
-    if (tg?.initData) fd.append('initData', tg.initData);
-    btn.disabled = true; msg.textContent = 'Envoi en cours…';
-    try {
-      const r = await fetch('/api/kyc_submit', { method: 'POST', body: fd });
-      const j = await r.json();
-      if (j.success) {
-        msg.className = 'okmsg';
-        msg.textContent = '✅ Vérification envoyée ! Tu recevras ta carte une fois validée.';
-        if (tg) setTimeout(() => tg.close(), 2500);
-      } else {
-        msg.className = 'err'; msg.textContent = '❌ ' + (j.message || 'Erreur'); btn.disabled = false;
-      }
-    } catch (err) {
-      msg.className = 'err'; msg.textContent = '❌ Erreur réseau : ' + err; btn.disabled = false;
+// genre segmented
+const seg=document.getElementById('genderSeg'); const genderInput=document.querySelector('input[name=gender]');
+seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  genderInput.value=b.dataset.v; document.getElementById('genderErr').classList.remove('show');
+});
+
+// dropzones
+function bindDrop(id){
+  const inp=document.getElementById(id), zone=document.getElementById('d_'+id), img=zone.querySelector('img');
+  zone.onclick=()=>inp.click();
+  inp.onchange=()=>{ const f=inp.files[0]; if(!f)return;
+    zone.classList.add('filled'); img.src=URL.createObjectURL(f);
+    (document.getElementById(id+'Err')||{classList:{remove(){}}}).classList.remove('show');
+  };
+}
+['idFront','idBack','selfie'].forEach(bindDrop);
+
+function render(){
+  track.style.transform=`translateX(-${step*100}%)`;
+  panels.forEach((p,i)=>p.classList.toggle('active',i===step));
+  barEls.forEach((b,i)=>{b.className=i<step?'done':(i===step?'cur':'')});
+  document.getElementById('stepTitle').textContent=panels[step].dataset.title;
+  document.getElementById('stepCount').textContent=`Étape ${step+1} / ${panels.length}`;
+  if(step===LAST) buildRecap();
+  setMainBtn();
+  if(tg?.BackButton){ step>0?tg.BackButton.show():tg.BackButton.hide(); }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function setMainBtn(){
+  const label = step===LAST ? "Envoyer ma vérification" : "Continuer";
+  document.getElementById('next').textContent=label;
+  if(tg?.MainButton){ tg.MainButton.setText(label); tg.MainButton.show(); tg.MainButton.enable(); }
+}
+
+function validStep(){
+  let ok=true;
+  panels[step].querySelectorAll('[data-req]').forEach(el=>{
+    let bad=false; const v=(el.value||'').trim();
+    if(!v) bad=true;
+    if(el.name==='email' && v && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) bad=true;
+    if((el.name==='nationality'||el.name==='addr_country'||el.name==='addr_state') && v && v.length>2) bad=true;
+    if(el.type==='file' && el.files.length===0) bad=true;
+    if(bad){ ok=false;
+      if(el.type!=='hidden'&&el.type!=='file') el.classList.add('bad');
+      const em = el.parentElement.querySelector('.err-msg') || document.getElementById(el.name+'Err') || document.getElementById((el.id||'')+'Err');
+      if(em) em.classList.add('show');
     }
   });
+  return ok;
+}
+// clear error on input
+document.addEventListener('input',e=>{ if(e.target.classList){e.target.classList.remove('bad');
+  const em=e.target.parentElement?.querySelector('.err-msg'); if(em)em.classList.remove('show');}});
+
+function buildRecap(){
+  const g=v=>document.querySelector(`[name="${v}"]`)?.value||'—';
+  const gd=genderInput.value==='F'?'Femme':(genderInput.value==='M'?'Homme':'—');
+  const rows=[
+    ['Nom', `${g('firstName')} ${g('lastName')}`],['Naissance', g('dateOfBirth')],['Genre', gd],
+    ['Nationalité', g('nationality')],['Email', g('email')],['Téléphone', `+${g('phoneCountryCode')} ${g('phoneNumber')}`],
+    ['Adresse', `${g('addr_line1')}, ${g('addr_city')} ${g('addr_state')} ${g('addr_postal')}, ${g('addr_country')}`],
+    ['Pièce', `${document.querySelector('[name=idType]').selectedOptions[0].text} · ${g('nationalId')}`],
+    ['Documents', `${document.getElementById('idFront').files.length?'recto ✓':'—'} ${document.getElementById('idBack').files.length?'verso ✓':''} ${document.getElementById('selfie').files.length?'selfie ✓':''}`],
+  ];
+  document.getElementById('recap').innerHTML=rows.map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join('');
+}
+
+async function advance(){
+  if(!validStep()){ tg?.HapticFeedback?.notificationOccurred?.('error'); return; }
+  if(step<LAST){ step++; render(); return; }
+  await submit();
+}
+document.getElementById('next').onclick=advance;
+if(tg?.MainButton) tg.MainButton.onClick(advance);
+if(tg?.BackButton) tg.BackButton.onClick(()=>{ if(step>0){step--; render();} });
+
+async function submit(){
+  if(!uid){ showFinal('⚠️','Identifiant manquant','Rouvre le formulaire depuis le bot.'); return; }
+  document.getElementById('wizard').classList.add('hide');
+  document.getElementById('fab').classList.add('hide');
+  if(tg?.MainButton) tg.MainButton.hide();
+  showFinal('<div class="spin"></div>','Envoi en cours…','Vérification de ton dossier.');
+  const fd=new FormData();
+  document.querySelectorAll('[name]').forEach(el=>{
+    if(el.type==='file'){ if(el.files[0]) fd.append(el.name, el.files[0]); }
+    else if(el.value) fd.append(el.name, el.value);
+  });
+  fd.append('uid', uid); if(tg?.initData) fd.append('initData', tg.initData);
+  try{
+    const r=await fetch('/api/kyc_submit',{method:'POST',body:fd});
+    const j=await r.json();
+    if(j.success){ tg?.HapticFeedback?.notificationOccurred?.('success');
+      showFinal('✅','Vérification envoyée !','Tu seras notifié dès la validation. Tu pourras alors créer ta carte.');
+      if(tg) setTimeout(()=>tg.close(),3200);
+    } else { showFinal('⚠️','Échec','«'+(j.message||'Erreur')+'»'); retryBtn(); }
+  }catch(e){ showFinal('⚠️','Erreur réseau', String(e)); retryBtn(); }
+}
+function showFinal(emoji,h2,p){ const d=document.getElementById('done'); d.classList.remove('hide');
+  d.innerHTML=`<div class="emoji">${emoji}</div><h2>${h2}</h2><p>${p}</p><div id="rb"></div>`; }
+function retryBtn(){ document.getElementById('rb').innerHTML='<button onclick="location.reload()" style="margin-top:18px;padding:14px 22px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-text);font-weight:700">Réessayer</button>'; }
+
+render();
 </script>
 </body>
 </html>

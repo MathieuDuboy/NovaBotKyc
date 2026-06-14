@@ -1706,7 +1706,9 @@ async def kyc_submit(request: Request):
         "phoneCountryCode": form.get("phoneCountryCode") or "",
         "address": {
             "line1": form.get("addr_line1") or "",
+            "line2": form.get("addr_line2") or "",
             "city": form.get("addr_city") or "",
+            "state": form.get("addr_state") or "",
             "country": (form.get("addr_country") or "").upper(),
             "postalCode": form.get("addr_postal") or "",
         },
