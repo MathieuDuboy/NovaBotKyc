@@ -1,0 +1,22 @@
+# Bot A (KYC) — systemd. Copier dans /etc/systemd/system/nova-kyc.service
+# puis : systemctl daemon-reload && systemctl enable --now nova-kyc
+[Unit]
+Description=Nova Bot A (KYC) - kyc_bot
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/nova/kyc_bot
+Environment=PYTHONPATH=/opt/nova/kyc_bot
+Environment=WORKER_ID=0
+# S'assure que l'infra Docker (MySQL/Mongo/Redis nova_kyc) est up avant l'app
+ExecStartPre=/usr/bin/docker compose -f config/docker-compose.sandbox.yml up -d
+ExecStart=/opt/nova/kyc_bot/venv/bin/uvicorn app:app --host 127.0.0.1 --port 3003
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target

@@ -736,7 +736,7 @@ class MySQLClient:
         """Crée ou met à jour la ligne interlace_accounts d'un user (clé unique
         USER_ID). Ne touche que les champs fournis (non-None)."""
         allowed = ("account_id", "cardholder_id", "card_id", "card_number",
-                   "bin", "kyc_status", "kyc_case_id")
+                   "bin", "kyc_status", "kyc_case_id", "profile_json", "handoff_token")
         sets = {k: v for k, v in fields.items() if k in allowed and v is not None}
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cols = ["`USER_ID`"] + [f"`{k}`" for k in sets] + ["`created_at`", "`updated_at`"]

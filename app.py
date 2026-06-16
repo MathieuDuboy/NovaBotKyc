@@ -721,9 +721,20 @@ async def process_notification(request: Request, payload: dict, method: str):
                 # TODO: Implement account registration handling
 
             elif business_type == "KYC":
-                # Handle KYC notification
-                logger.info(f"KYC update for account: {data.get('id', 'unknown')}")
-                # TODO: Implement KYC handling
+                # KYC du sous-compte (Gateway). Routé par accountId.
+                acct = data.get("accountId") or data.get("id")
+                kyc_status = str(data.get("status") or data.get("kycStatus") or "").upper()
+                reason = data.get("rejectReason") or data.get("reason")
+                logger.info(f"[gateway-webhook] KYC account={acct} status={kyc_status}")
+                from services.interlace_kyc import (complete_after_kyc_passed,
+                                                    handle_kyc_rejected)
+                if acct and kyc_status in ("PASSED", "APPROVED", "ACTIVE"):
+                    await complete_after_kyc_passed(acct)
+                elif acct and kyc_status in ("CANCELED", "CANCELLED", "REJECTED", "FAILED"):
+                    await handle_kyc_rejected(acct, reason)
+                elif acct:
+                    from services.mysql_service import mysql_client as _mc
+                    await _mc.set_kyc_status(acct, kyc_status or "PENDING")
 
             elif business_type == "FaceAuthentication":
                 # Handle face authentication
@@ -1644,23 +1655,23 @@ async def _dispatch_interlace_webhook(event, resource, event_id):
     except Exception:
         data = {}
     kyc = data.get("kyc") if isinstance(data.get("kyc"), dict) else {}
-    # MoR : le KYC est porté par le CARDHOLDER -> on route par cardholder_id.
-    cardholder_id = (data.get("cardholderId") or data.get("cardHolderId")
-                     or kyc.get("cardholderId") or data.get("id"))
+    # GATEWAY : le KYC est porté par le SOUS-COMPTE -> on route par accountId.
+    account_id = (data.get("accountId") or kyc.get("accountId") or data.get("id"))
     status = str(data.get("status") or kyc.get("status") or "").upper()
     try:
         from services.interlace_kyc import (complete_after_kyc_passed,
                                             handle_kyc_rejected)
-        # Statut KYC porté soit par KYC.UPDATED, soit par CARDHOLDER.UPDATED.
-        if event in ("KYC.UPDATED", "KYC.UPDATE", "CARDHOLDER.UPDATED"):
-            if status in ("PASSED", "APPROVED", "SUCCESS"):
+        # Statut KYC du sous-compte (KYC.UPDATED) ou variantes.
+        if event in ("KYC.UPDATED", "KYC.UPDATE", "ACCOUNT.KYC.UPDATED",
+                     "CARDHOLDER.UPDATED"):
+            if status in ("PASSED", "APPROVED", "SUCCESS", "ACTIVE"):
                 await complete_after_kyc_passed(
-                    cardholder_id, case_id=data.get("caseId") or kyc.get("caseId"))
-            elif status in ("REJECTED", "FAILED", "DECLINED"):
+                    account_id, case_id=data.get("caseId") or kyc.get("caseId"))
+            elif status in ("REJECTED", "FAILED", "DECLINED", "CANCELED", "CANCELLED"):
                 await handle_kyc_rejected(
-                    cardholder_id, reason=data.get("reason") or data.get("rejectReason"))
+                    account_id, reason=data.get("reason") or data.get("rejectReason"))
             else:
-                logger.info(f"[interlace-webhook] {event} statut={status} cardholder={cardholder_id}")
+                logger.info(f"[interlace-webhook] {event} statut={status} account={account_id}")
         elif event in ("CARD.CREATED", "CARD.UPDATED", "CARDHOLDER.CREATED"):
             logger.info(f"[interlace-webhook] {event}: {data}")
         else:
@@ -1680,6 +1691,52 @@ async def kyc_form_page():
     raise HTTPException(status_code=404, detail="KYC form not found")
 
 
+@app.post("/api/admin/finalize_kyc")
+async def admin_finalize_kyc(account_id: str):
+    """SANDBOX/admin : après approbation manuelle Interlace d'un sous-compte,
+    vérifie qu'il est PASSED puis déroule cardholder + carte + notif user.
+    Sert à tester le parcours A→Z quand le KYC est approuvé en batch."""
+    if not getattr(config, "TESTING_MODE", False):
+        raise HTTPException(status_code=403, detail="testing only")
+    import asyncio as _a
+    from services.interlace_kyc import complete_after_kyc_passed, _client
+    try:
+        cdd = await _a.to_thread(_client().get_cdd_detail, account_id)
+    except Exception as e:
+        return {"ok": False, "message": f"cdd error: {e}"}
+    k = cdd.get("kyc") if isinstance(cdd, dict) else None
+    st = str((k or {}).get("status") or "").upper()
+    if st not in ("PASSED", "APPROVED", "ACTIVE"):
+        return {"ok": False, "status": st, "message": "KYC pas encore approuvé"}
+    res = await complete_after_kyc_passed(account_id)
+    return {"ok": bool(res.get("success")), **res}
+
+
+@app.get("/api/handoff")
+async def handoff(token: str):
+    """Bot B (interlace_bot) résout un token de lien -> binding carte de l'user.
+    Renvoie account_id / cardholder_id / card_id pour piloter la carte Interlace."""
+    from services.mysql_service import mysql_client as _mc
+    rows = await _mc.execute_query_async(
+        "SELECT `USER_ID`,`account_id`,`cardholder_id`,`card_id`,`card_number`,`bin`,`kyc_status` "
+        "FROM interlace_accounts WHERE `handoff_token`=%s LIMIT 1", (token,))
+    if not rows:
+        raise HTTPException(status_code=404, detail="token inconnu")
+    r = rows[0]
+    return {"user_id": r.get("USER_ID"),
+            "account_id": r.get("account_id"), "cardholder_id": r.get("cardholder_id"),
+            "card_id": r.get("card_id"), "card_number": r.get("card_number"),
+            "bin": r.get("bin"), "kyc_status": r.get("kyc_status")}
+
+
+@app.get("/api/kyc_status")
+async def kyc_status(uid: int):
+    """Statut KYC d'un user (pour bloquer le formulaire au chargement)."""
+    from services.mysql_service import mysql_client as _mc
+    acc = await _mc.get_interlace_account(uid)
+    return {"status": (acc.get("kyc_status") if acc else None) or "NONE"}
+
+
 @app.post("/api/kyc_submit")
 async def kyc_submit(request: Request):
     """Réception du formulaire KYC (multipart : champs + pièce + selfie) ->
@@ -1690,6 +1747,18 @@ async def kyc_submit(request: Request):
     except (TypeError, ValueError):
         return JSONResponse({"success": False, "message": "uid manquant/invalide"},
                             status_code=400)
+
+    # Anti-doublon : un KYC déjà en cours / validé bloque une nouvelle soumission.
+    from services.mysql_service import mysql_client as _mc
+    existing = await _mc.get_interlace_account(user_id)
+    if existing:
+        _st = str(existing.get("kyc_status") or "").upper()
+        if _st == "PENDING":
+            return JSONResponse({"success": False, "code": "kyc_pending",
+                                 "message": "Vérification déjà en cours."}, status_code=409)
+        if _st in ("PASSED", "ACTIVE"):
+            return JSONResponse({"success": False, "code": "kyc_passed",
+                                 "message": "Vérification déjà validée."}, status_code=409)
 
     profile = {
         "firstName": (form.get("firstName") or "").strip(),
@@ -1704,6 +1773,7 @@ async def kyc_submit(request: Request):
         "expiryDate": form.get("expiryDate") or "",
         "phoneNumber": form.get("phoneNumber") or "",
         "phoneCountryCode": form.get("phoneCountryCode") or "",
+        "lang": (form.get("lang") or "en"),
         "address": {
             "line1": form.get("addr_line1") or "",
             "line2": form.get("addr_line2") or "",
@@ -1738,6 +1808,11 @@ async def kyc_submit(request: Request):
     except Exception as e:
         logger.error(f"[kyc_submit] user={form.get('uid')} échec: {e}")
         return JSONResponse({"success": False, "message": str(e)}, status_code=500)
+    # Fallback sans webhook : on poll le KYC en tâche de fond -> carte ou refus notifié.
+    if result.get("success") and result.get("account_id"):
+        import asyncio as _asyncio
+        from services.interlace_kyc import poll_and_finalize
+        _asyncio.create_task(poll_and_finalize(user_id, result["account_id"]))
     return JSONResponse(result, status_code=200 if result.get("success") else 502)
 
 

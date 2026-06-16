@@ -86,6 +86,8 @@ DDL = [
         `bin`           VARCHAR(32),
         `kyc_status`    VARCHAR(24) DEFAULT 'NONE',-- NONE/PENDING/PASSED/REJECTED
         `kyc_case_id`   VARCHAR(64),
+        `profile_json`  TEXT,                      -- profil mini app (pour créer le cardholder après PASS)
+        `handoff_token` VARCHAR(64),               -- token unique du lien vers Bot B (utilisation carte)
         `created_at`    DATETIME,
         `updated_at`    DATETIME,
         UNIQUE KEY uq_ia_user (`USER_ID`),

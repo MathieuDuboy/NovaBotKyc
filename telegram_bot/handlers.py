@@ -27,6 +27,31 @@ from telegram_bot.utils.validation import (is_valid_email, is_valid_name,
 from utils.logger import logger
 
 
+# Textes du bot pour le lancement du KYC (mini app) — localisés en dur car ces
+# clés n'existent pas dans les fichiers de langue (get_string retomberait sinon
+# toujours sur le default FR). Langues alignées sur la mini app (en/fr/ru).
+KYC_FORM_INTRO = {
+    "en": ("To get your card, complete your identity verification in the secure "
+           "form (info + ID document + selfie) 👇"),
+    "fr": ("Pour obtenir ta carte, complète ta vérification d'identité dans le "
+           "formulaire sécurisé (infos + pièce d'identité + selfie) 👇"),
+    "ru": ("Чтобы получить карту, пройдите проверку личности в защищённой форме "
+           "(данные + документ + селфи) 👇"),
+}
+GET_CARD_BUTTON = {
+    "en": "💳 Get my card",
+    "fr": "💳 Obtenir ma carte",
+    "ru": "💳 Получить карту",
+}
+
+
+def kyc_form_texts(language):
+    """(intro, bouton) pour lancer la mini app KYC, selon la langue (fallback EN)."""
+    lang = (language or "en").split("-")[0].lower()
+    return (KYC_FORM_INTRO.get(lang, KYC_FORM_INTRO["en"]),
+            GET_CARD_BUTTON.get(lang, GET_CARD_BUTTON["en"]))
+
+
 # Initialize MongoDB and Redis clients
 mongo_client = MongoClientWrapper()
 redis_client = RedisClientWrapper()
@@ -596,13 +621,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             default="Referral code saved!")
                     )
                     kyc_url = f"{config.MINIAPP_URL.rstrip(chr(47))}/kyc?uid={chat_id}&lang={language}"
-                    intro = get_string(
-                        "kycFormIntro", language,
-                        default=("Pour obtenir ta carte, complète ta vérification "
-                                 "d'identité dans le formulaire sécurisé (infos + "
-                                 "pièce d'identité + selfie) 👇"))
-                    btn = get_string("getCardButton", language,
-                                     default="💳 Obtenir ma carte")
+                    intro, btn = kyc_form_texts(language)
                     await context.bot.send_message(
                         chat_id=chat_id,
                         text=intro,
@@ -633,17 +652,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif current_step == "kyc_form":
             # L'user doit utiliser le bouton (mini app), pas taper du texte.
             kyc_url = f"{config.MINIAPP_URL.rstrip(chr(47))}/kyc?uid={chat_id}&lang={language}"
+            intro, btn = kyc_form_texts(language)
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=get_string(
-                    "kycFormIntro", language,
-                    default=("Complète ta vérification d'identité dans le "
-                             "formulaire sécurisé 👇")),
+                text=intro,
                 reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton(
-                        get_string("getCardButton", language,
-                                   default="💳 Obtenir ma carte"),
-                        web_app=WebAppInfo(url=kyc_url))
+                    InlineKeyboardButton(btn, web_app=WebAppInfo(url=kyc_url))
                 ]]),
             )
         elif current_step == "firstName":

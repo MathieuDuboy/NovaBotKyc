@@ -111,15 +111,35 @@ class InterlaceV3:
                              params={"accountId": acc, "limit": str(limit), "page": str(page)})
         return data.get("list", []) if isinstance(data, dict) else (data or [])
 
-    # ── ÉCRITURES (flux consumer) ─────────────────────────────────────────────
-    def register_subaccount(self, email: str, name: str, phone: Optional[str] = None,
-                            parent_account_id: Optional[str] = None) -> dict:
-        body = {"email": email, "name": name}
-        if phone:
-            body["phone"] = phone
-        if parent_account_id:
-            body["parentAccountId"] = parent_account_id
-        return self._request("POST", "/open-api/v1/accounts/register", json_body=body)
+    def list_wallets(self, account_id: Optional[str] = None) -> List[dict]:
+        """Soldes d'un compte. objectType : 0=Infinity, 1=Budget, 2=carte prépayée.
+        GET /open-api/v3/cards/wallets — VALIDÉ live."""
+        acc = account_id or self.account_id
+        data = self._request("GET", "/open-api/v3/cards/wallets", params={"accountId": acc})
+        return data.get("list", []) if isinstance(data, dict) else (data or [])
+
+    def get_infinity_wallet(self, account_id: Optional[str] = None) -> Optional[dict]:
+        """Le wallet Infinity (objectType 0) d'un compte : {id(=balanceId), available, currency}."""
+        for w in self.list_wallets(account_id):
+            if w.get("objectType") == 0 or w.get("walletType") == 0:
+                return w
+        return None
+
+    # ── ÉCRITURES — flux GATEWAY consumer (validé live, cf. doc gateway-consumer-use)
+    # Parcours : 2.1 register sous-compte -> 2.2 KYC sous-compte (PASS requis)
+    #            -> 5 cardholder (sur le sous-compte) -> 6 prepaid-card.
+    def register_subaccount(self, *, email: str, name: str, parent_account_id: str,
+                            phone_number: Optional[str] = None,
+                            phone_country_code: Optional[str] = None) -> dict:
+        """Step 2.1 — crée un sous-compte (sous-marchand) sous le compte maître.
+        VALIDÉ live : POST /open-api/v3/accounts/register -> {id, displayId, status:'ACTIVE'}."""
+        body: Dict[str, Any] = {"email": email, "name": name,
+                                "parentAccountId": parent_account_id}
+        if phone_number:
+            body["phoneNumber"] = phone_number
+        if phone_country_code:
+            body["phoneCountryCode"] = phone_country_code
+        return self._request("POST", "/open-api/v3/accounts/register", json_body=body)
 
     def upload_files(self, account_id: str, file_tuples: List[Tuple[str, bytes, str]]) -> Any:
         """file_tuples : liste de (filename, contenu_bytes, content_type). Renvoie les fileId."""
@@ -127,62 +147,129 @@ class InterlaceV3:
         return self._request("POST", "/open-api/v3/files/upload",
                              data={"accountId": account_id}, files=files)
 
-    def submit_kyc(self, account_id: str, kyc: dict) -> Any:
+    def initialize_account(self, account_id: str) -> Any:
+        """Provisionne l'Infinity account d'un sous-compte (après KYC PASSED).
+        VALIDÉ live : POST /open-api/v2/accounts/{id}/initialization -> true.
+        Sans ça, créer une carte échoue (010021 'account balance does not exist')."""
+        return self._request("POST", f"/open-api/v2/accounts/{account_id}/initialization")
+
+    def transfer_external(self, *, from_account: str, from_balance_id: str,
+                          to_account: str, to_balance_id: str, amount,
+                          client_tx_id: str, currency: str = "USD") -> Any:
+        """Transfert entre comptes (maître -> sous-compte). VALIDÉ live (code 000000,
+        status CLOSED, fee 0). POST /open-api/v3/business/transfer/external.
+        businessType 0 = Infinity account de part et d'autre."""
+        return self._request("POST", "/open-api/v3/business/transfer/external", json_body={
+            "clientTransactionId": client_tx_id, "amount": str(amount),
+            "from": {"id": from_balance_id, "accountId": from_account,
+                     "currency": currency, "businessType": 0},
+            "to": {"id": to_balance_id, "accountId": to_account,
+                   "currency": currency, "businessType": 0},
+        })
+
+    def submit_account_kyc(self, account_id: str, kyc: dict) -> Any:
+        """Step 2.2 — soumet le KYC du sous-compte. VALIDÉ live.
+        kyc attend : firstName, lastName, dateOfBirth (YYYY-MM-DD), gender ('M'/'F'),
+        nationality (ISO-2), nationalId, idType (PASSPORT…), issueDate, expiryDate,
+        address {addressLine1, city, state, country, postalCode}, idFrontId, selfie,
+        phoneNumber, phoneCountryCode ; ssn (9 chiffres) OBLIGATOIRE si adresse US ;
+        idBackId optionnel. Renvoie {caseId, accountId, status:'PENDING'}."""
         payload = {"sourceType": "api", **kyc}
         return self._request("POST", f"/open-api/v3/accounts/{account_id}/kyc", json_body=payload)
 
-    def initialize_account(self, account_id: str) -> Any:
-        return self._request("POST", f"/open-api/v2/accounts/{account_id}/initialization")
+    # alias rétro-compat
+    submit_kyc = submit_account_kyc
+
+    def simulate_kyc_review(self, account_id: str, status: str = "Passed",
+                            message: str = "sandbox") -> Any:
+        """SANDBOX uniquement — force le résultat KYC d'un sous-compte (Passed/Canceled).
+        ⚠️ Renvoie actuellement code 902 sur notre compte (flag à activer côté Interlace)."""
+        return self._request("POST", "/open-api/v3/vcc/simulate/kyc/review",
+                             json_body={"accountId": account_id, "status": status,
+                                        "message": message})
 
     def create_cardholder(self, *, account_id: str, bin_id: str, profile: dict,
-                          id_front_id: str, selfie_id: str,
-                          id_back_id: Optional[str] = None, tier: str = "CONSUMER") -> Any:
-        """Crée un cardholder (KYC inclus) — schéma ConsumerMor v3 VALIDÉ live.
-
-        profile attend : firstName, lastName, email, dob (YYYY-MM-DD), gender ("M"/"F"),
-        nationality (ISO-2), nationalId, idType (ex. PASSPORT), phoneNumber,
-        phoneCountryCode, address {addressLine1, city, state (≤2 car.), country (ISO-2),
-        postalCode, addressLine2?} ; optionnels : issueDate, expiryDate, occupation.
-        ⚠️ Le BIN impose le pays de l'adresse (ex. BIN 556766 = adresse US obligatoire).
-        Renvoie data {id (cardholderId), status (PENDING/...), ...}."""
-        body = {
+                          tier: str = "CONSUMER") -> Any:
+        """Step 5 — crée un cardholder sur un sous-compte DÉJÀ KYC-PASSED (mode Gateway).
+        tier = 'CONSUMER'. Le KYC étant porté par le sous-compte, le cardholder est léger.
+        Si le sous-compte n'est pas PASSED -> 'No KYC information (010787)'.
+        profile : firstName, lastName, email, dob, gender, nationality, phoneNumber,
+        phoneCountryCode, address (+ nationalId/idType si exigés). À VALIDER live sur
+        un sous-compte PASSED. Renvoie {id (cardholderId), status, cardBinList}."""
+        body: Dict[str, Any] = {
             "accountId": account_id, "binId": bin_id, "cardholderTier": tier,
             "firstName": profile["firstName"], "lastName": profile["lastName"],
-            "email": profile["email"], "dob": profile["dob"], "gender": profile["gender"],
-            "nationality": profile["nationality"], "nationalId": profile["nationalId"],
-            "idType": profile["idType"], "address": profile["address"],
-            "phoneNumber": profile["phoneNumber"], "phoneCountryCode": profile["phoneCountryCode"],
-            "idFrontId": id_front_id, "selfie": selfie_id,
+            "email": profile.get("email"), "dob": profile.get("dob"),
+            "gender": profile.get("gender"), "nationality": profile.get("nationality"),
+            "phoneNumber": profile.get("phoneNumber"),
+            "phoneCountryCode": profile.get("phoneCountryCode"),
         }
-        for k in ("issueDate", "expiryDate", "occupation"):
+        if profile.get("address"):
+            body["address"] = profile["address"]
+        for k in ("nationalId", "idType", "issueDate", "expiryDate", "occupation"):
             if profile.get(k):
                 body[k] = profile[k]
-        if id_back_id:
-            body["idBackId"] = id_back_id
-        return self._request("POST", "/open-api/v3/cardholders", json_body=body)
+        return self._request("POST", "/open-api/v3/cardholders",
+                             json_body={k: v for k, v in body.items() if v is not None})
 
     def get_cardholder(self, cardholder_id: str, account_id: Optional[str] = None) -> dict:
-        """Statut KYC du cardholder (PENDING/PASSED/REJECTED + rejectReason)."""
+        """Statut du cardholder (PENDING/ACTIVE/INACTIVE + rejectReason)."""
         return self._request("GET", f"/open-api/v3/cardholders/{cardholder_id}",
                              params={"accountId": account_id or self.account_id})
 
-    def create_card(self, *, bin: str, cardholder_id: str, use_type: str = "Virtual card",
-                    batch_count: int = 1, account_id: Optional[str] = None,
-                    cost: Optional[float] = None, label: Optional[str] = None,
-                    client_transaction_id: Optional[str] = None) -> Any:
+    def create_prepaid_card(self, *, account_id: str, bin_id: str, cardholder_id: str,
+                            reference_id: str, idempotency_key: str,
+                            card_mode: str = "VIRTUAL_CARD", amount: Optional[float] = None,
+                            use_type: Optional[str] = None, label: Optional[str] = None) -> Any:
+        """Step 6.1 — émet une carte prépayée. POST /open-api/v3/prepaid-card.
+        card_mode : 'VIRTUAL_CARD' | 'PHYSICAL_CARD'. referenceId = id unique côté nous.
+        Header Idempotency-Key requis. À VALIDER live (besoin d'un cardholder approuvé)."""
         body: Dict[str, Any] = {
-            "type": "PrepaidCard", "bin": bin, "batchCount": batch_count,
-            "useType": use_type, "cardholderId": cardholder_id, "cardMode": "VirtualCard",
+            "accountId": account_id, "binId": bin_id, "cardholderId": cardholder_id,
+            "referenceId": reference_id, "cardMode": card_mode,
         }
-        if account_id or self.account_id:
-            body["accountId"] = account_id or self.account_id
-        if cost is not None:
-            body["cost"] = cost
+        if amount is not None:
+            body["amount"] = amount
+        if use_type:
+            body["useType"] = use_type
         if label:
             body["label"] = label
-        if client_transaction_id:
-            body["clientTransactionId"] = client_transaction_id
-        return self._request("POST", "/open-api/v2/cards", json_body=body)
+        headers = {"x-access-token": self._ensure_token(),
+                   "Idempotency-Key": idempotency_key}
+        url = f"{self.base}/open-api/v3/prepaid-card"
+        r = requests.post(url, headers=headers, json=body, timeout=self.timeout)
+        try:
+            j = r.json()
+        except Exception:
+            raise InterlaceV3Error(f"POST /open-api/v3/prepaid-card: HTTP {r.status_code}: {r.text[:200]}",
+                                   http=r.status_code)
+        if isinstance(j, dict) and "code" in j and j.get("code") not in (None, "000000", 0, "0"):
+            raise InterlaceV3Error(f"POST /open-api/v3/prepaid-card: {j.get('message')} (code {j.get('code')})",
+                                   code=str(j.get("code")), http=r.status_code)
+        return j.get("data", j) if isinstance(j, dict) else j
+
+    def card_transfer_in(self, *, account_id: str, card_id: str, amount,
+                         client_tx_id: str) -> Any:
+        """Recharge la carte depuis l'Infinity account du sous-compte.
+        POST /open-api/v3/cards/transfer-in {accountId, cardId, clientTransactionId, amount}."""
+        return self._request("POST", "/open-api/v3/cards/transfer-in", json_body={
+            "accountId": account_id, "cardId": card_id,
+            "clientTransactionId": client_tx_id, "amount": str(amount)})
+
+    def card_transfer_out(self, *, account_id: str, card_id: str, amount,
+                          client_tx_id: str) -> Any:
+        """Retire des fonds de la carte vers l'Infinity account du sous-compte.
+        VALIDÉ live : POST /open-api/v3/cards/transfer-out (fee 0, status CLOSED)."""
+        return self._request("POST", "/open-api/v3/cards/transfer-out", json_body={
+            "accountId": account_id, "cardId": card_id,
+            "clientTransactionId": client_tx_id, "amount": str(amount)})
+
+    def card_balance(self, account_id: str, card_id: Optional[str] = None) -> Optional[dict]:
+        """Wallet d'une carte prépayée (objectType 2). Si card_id, filtre dessus."""
+        for w in self.list_wallets(account_id):
+            if w.get("objectType") == 2:
+                return w
+        return None
 
     # ── vérif signature webhook ───────────────────────────────────────────────
     @staticmethod
