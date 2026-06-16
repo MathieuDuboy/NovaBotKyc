@@ -1476,35 +1476,12 @@ if os.path.isdir(MINI_APP_ABS_PATH):
             return FileResponse(favicon_path)
         raise HTTPException(status_code=404, detail="Favicon not found")
 
-    @app.get("/", response_class=FileResponse)
-    async def serve_index_frontend(request: Request):
-        """Serves the main index.html file for the root path."""
-        index_path = os.path.join(MINI_APP_ABS_PATH, "index.html")
-
-        # Log access to MongoDB
-        await mongo_client_instance.log_api_request(
-            {
-                "ip": request.client.host,
-                "endpoint": "/",
-                "method": "GET",
-                "user_agent": request.headers.get("user-agent", "Unknown"),
-            }
-        )
-
-        if os.path.exists(index_path):
-            logger.debug("Serving index.html for path '/'")
-            with open(index_path, "r", encoding="utf-8") as f:
-                html_content = f.read()
-            # Inject secure token into the HTML
-            token_script = f'<script>window.TELEGRAM_MINIAPP_TOKEN = "{config.TELEGRAM_MINIAPP_TOKEN}";</script>'
-            if "<head>" in html_content:
-                html_content = html_content.replace("<head>", "<head>" + token_script)
-            else:
-                html_content = token_script + html_content
-            return HTMLResponse(content=html_content)
-        else:
-            logger.error(f"index.html not found at {index_path} for root path")
-            raise HTTPException(status_code=404, detail="Index file not found")
+    @app.get("/")
+    async def serve_index_frontend():
+        """Bot KYC : la racine renvoie vers le FORMULAIRE (jamais l'ancienne mini
+        app cartes héritée de selharrar). Le bot KYC ne sert que le KYC."""
+        from starlette.responses import RedirectResponse
+        return RedirectResponse(url="/kyc")
 
     @app.get("/ad", response_class=HTMLResponse)
     async def serve_ad_page():
