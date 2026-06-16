@@ -1668,8 +1668,13 @@ async def _dispatch_interlace_webhook(event, resource, event_id):
                 await complete_after_kyc_passed(
                     account_id, case_id=data.get("caseId") or kyc.get("caseId"))
             elif status in ("REJECTED", "FAILED", "DECLINED", "CANCELED", "CANCELLED"):
-                await handle_kyc_rejected(
-                    account_id, reason=data.get("reason") or data.get("rejectReason"))
+                # SANDBOX : refus auto factice -> on le masque (validation manuelle ensuite)
+                if getattr(config, "TESTING_MODE", False):
+                    logger.info(f"[gateway-webhook] {status} account={account_id} -> "
+                                f"SANDBOX, refus masqué")
+                else:
+                    await handle_kyc_rejected(
+                        account_id, reason=data.get("reason") or data.get("rejectReason"))
             else:
                 logger.info(f"[interlace-webhook] {event} statut={status} account={account_id}")
         elif event in ("CARD.CREATED", "CARD.UPDATED", "CARDHOLDER.CREATED"):
