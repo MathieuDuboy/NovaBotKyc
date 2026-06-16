@@ -12,7 +12,7 @@ WorkingDirectory=/opt/nova/kyc_bot
 Environment=PYTHONPATH=/opt/nova/kyc_bot
 Environment=WORKER_ID=0
 # S'assure que l'infra Docker (MySQL/Mongo/Redis nova_kyc) est up avant l'app
-ExecStartPre=/usr/bin/docker compose -f config/docker-compose.sandbox.yml up -d
+ExecStartPre=/usr/bin/docker compose -p nova_kyc -f config/docker-compose.sandbox.yml up -d
 ExecStart=/opt/nova/kyc_bot/venv/bin/uvicorn app:app --host 127.0.0.1 --port 3003
 Restart=always
 RestartSec=5

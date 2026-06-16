@@ -11,7 +11,7 @@ Type=simple
 WorkingDirectory=/opt/nova/interlace_bot
 Environment=PYTHONPATH=/opt/nova/interlace_bot
 Environment=WORKER_ID=0
-ExecStartPre=/usr/bin/docker compose -f config/docker-compose.sandbox.yml up -d
+ExecStartPre=/usr/bin/docker compose -p nova_il -f config/docker-compose.sandbox.yml up -d
 ExecStart=/opt/nova/interlace_bot/venv/bin/uvicorn app:app --host 127.0.0.1 --port 3002
 Restart=always
 RestartSec=5
