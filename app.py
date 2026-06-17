@@ -1608,11 +1608,57 @@ async def interlace_webhook(request: Request, background_tasks: BackgroundTasks)
             logger.error(f"[interlace-webhook] erreur vérif signature: {e}")
     elif not signature:
         logger.info("[interlace-webhook] pas d'en-tête Signature — vérif ignorée")
-    event = payload.get("eventType")
+    # Format RÉEL Interlace v3 : businessType + data(dict) + businessStatus
+    # (et non eventType/resource). On dérive aussi event depuis businessType pour
+    # rétro-compat.
+    business_type = payload.get("businessType") or payload.get("eventType")
+    data_obj = payload.get("data") if isinstance(payload.get("data"), dict) else None
+    business_status = payload.get("businessStatus")
     event_id = payload.get("id")
-    logger.info(f"[interlace-webhook] event={event} id={event_id}")
-    background_tasks.add_task(_dispatch_interlace_webhook, event, resource, event_id)
+    logger.info(f"[interlace-webhook] businessType={business_type} status={business_status} "
+                f"id={event_id} data_keys={list(data_obj.keys()) if data_obj else None}")
+    background_tasks.add_task(_dispatch_kyc_webhook_v3, business_type, data_obj,
+                             business_status, event_id)
     return {"received": True}
+
+
+async def _dispatch_kyc_webhook_v3(business_type, data, status_top, event_id):
+    """Webhook v3 (businessType+data) : KYC/cardholder validé -> crée la carte
+    automatiquement (BIN par défaut). Idempotent. Garde le finalize_kyc manuel
+    comme fallback."""
+    try:
+        if redis_client and event_id:
+            key = f"il:wh:{event_id}"
+            if await redis_client.get(key):
+                return
+            await redis_client.set(key, "1", ex=86400)
+    except Exception:
+        pass
+    data = data if isinstance(data, dict) else {}
+    kyc = data.get("kyc") if isinstance(data.get("kyc"), dict) else {}
+    account_id = (data.get("accountId") or kyc.get("accountId") or data.get("id"))
+    status = str(data.get("status") or status_top or kyc.get("status") or "").upper()
+    bt = str(business_type or "")
+    is_kyc = ("KYC" in bt.upper() or "CARDHOLDER" in bt.upper()
+              or bt in ("AccountRegistered", "FaceAuthentication"))
+    try:
+        from services.interlace_kyc import (complete_after_kyc_passed,
+                                            handle_kyc_rejected)
+        if not is_kyc:
+            logger.info(f"[interlace-webhook] businessType non-KYC ignoré: {bt}")
+            return
+        if status in ("PASSED", "APPROVED", "SUCCESS", "ACTIVE", "NORMAL"):
+            logger.info(f"[gateway-webhook] KYC OK ({bt}/{status}) account={account_id} -> création carte")
+            await complete_after_kyc_passed(account_id, case_id=data.get("caseId") or kyc.get("caseId"))
+        elif status in ("REJECTED", "FAILED", "DECLINED", "CANCELED", "CANCELLED"):
+            if getattr(config, "TESTING_MODE", False):
+                logger.info(f"[gateway-webhook] {status} account={account_id} -> SANDBOX, refus masqué")
+            else:
+                await handle_kyc_rejected(account_id, reason=data.get("reason") or data.get("rejectReason"))
+        else:
+            logger.info(f"[gateway-webhook] {bt} statut={status} account={account_id} (pas d'action)")
+    except Exception as e:
+        logger.error(f"[gateway-webhook] dispatch KYC échec: {e}")
 
 
 async def _dispatch_interlace_webhook(event, resource, event_id):
