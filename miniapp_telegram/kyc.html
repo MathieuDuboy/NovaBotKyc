@@ -189,7 +189,7 @@ const I18N={
     d_front_t:"Front of the document",d_front_s:"Sharp photo, whole document in frame",d_back_t:"Back (optional)",d_back_s:"Not needed for a passport",
     d_selfie_t:"Take a selfie",d_selfie_s:"Front camera",
     btn_continue:"Continue",btn_submit:"Submit verification",btn_retry:"Retry",step:"Step",
-    e_req:"Required",e_email:"Invalid email",e_2:"2-letter code",e_gender:"Pick one",e_photo:"Photo required",
+    e_req:"Required",e_email:"Invalid email",e_2:"2-letter code",e_gender:"Pick one",e_photo:"Photo required",e_age:"Age must be 18-65.",
     err_phone:"Invalid phone number — enter it without the leading 0 (e.g. 612345678).",err_ssn:"Invalid SSN (9 digits, US only).",err_us:"This card requires a US address.",err_live:"Selfie failed the liveness check — retake a clear photo, face fully visible.",err_file:"Photo unreadable — retake a sharp photo of the document.",err_state:"Invalid State/Region (letters/numbers only, e.g. NY or NA).",btn_fix:"Go back & fix",
     r_name:"Name",r_dob:"Birth",r_gender:"Gender",r_nat:"Nationality",r_email:"Email",r_phone:"Phone",r_addr:"Address",r_id:"Document",r_docs:"Files",
     sending_t:"Sending…",sending_p:"Checking your file.",sent_t:"Verification sent!",sent_p:"You'll be notified in the bot once reviewed.",
@@ -207,7 +207,7 @@ const I18N={
     d_front_t:"Recto de la pièce",d_front_s:"Photo nette, document entier dans le cadre",d_back_t:"Verso (optionnel)",d_back_s:"Inutile pour un passeport",
     d_selfie_t:"Prendre un selfie",d_selfie_s:"Caméra frontale",
     btn_continue:"Continuer",btn_submit:"Envoyer ma vérification",btn_retry:"Réessayer",step:"Étape",
-    e_req:"Requis",e_email:"Email invalide",e_2:"Code 2 lettres",e_gender:"Choisis une option",e_photo:"Photo requise",
+    e_req:"Requis",e_email:"Email invalide",e_2:"Code 2 lettres",e_gender:"Choisis une option",e_photo:"Photo requise",e_age:"Âge requis : 18 à 65 ans.",
     err_phone:"Numéro invalide — saisis-le sans le 0 initial (ex. 612345678).",err_ssn:"SSN invalide (9 chiffres, US uniquement).",err_us:"Cette carte exige une adresse US.",err_live:"Le selfie a échoué au test de vivacité — reprends une photo nette, visage bien visible.",err_file:"Photo illisible — reprends une photo nette du document.",err_state:"État/Région invalide (lettres/chiffres, ex. NY ou NA).",btn_fix:"Revenir corriger",
     r_name:"Nom",r_dob:"Naissance",r_gender:"Genre",r_nat:"Nationalité",r_email:"Email",r_phone:"Téléphone",r_addr:"Adresse",r_id:"Pièce",r_docs:"Fichiers",
     sending_t:"Envoi en cours…",sending_p:"Vérification de ton dossier.",sent_t:"Vérification envoyée !",sent_p:"Tu seras notifié dans le bot une fois examinée.",
@@ -225,7 +225,7 @@ const I18N={
     d_front_t:"Лицевая сторона",d_front_s:"Чёткое фото, документ целиком в кадре",d_back_t:"Оборот (необязательно)",d_back_s:"Не нужно для паспорта",
     d_selfie_t:"Сделать селфи",d_selfie_s:"Фронтальная камера",
     btn_continue:"Продолжить",btn_submit:"Отправить проверку",btn_retry:"Повторить",step:"Шаг",
-    e_req:"Обязательно",e_email:"Неверный email",e_2:"Код 2 буквы",e_gender:"Выберите",e_photo:"Нужно фото",
+    e_req:"Обязательно",e_email:"Неверный email",e_2:"Код 2 буквы",e_gender:"Выберите",e_photo:"Нужно фото",e_age:"Возраст 18-65.",
     err_phone:"Неверный номер — без ведущего 0 (напр. 612345678).",err_ssn:"Неверный SSN (9 цифр, только США).",err_us:"Для этой карты нужен адрес США.",err_live:"Селфи не прошло проверку — переснимите чёткое фото, лицо полностью видно.",err_file:"Фото нечитаемо — переснимите чёткое фото документа.",err_state:"Неверный штат/регион (буквы/цифры, напр. NY).",btn_fix:"Вернуться и исправить",
     r_name:"Имя",r_dob:"Рождение",r_gender:"Пол",r_nat:"Гражданство",r_email:"Email",r_phone:"Телефон",r_addr:"Адрес",r_id:"Документ",r_docs:"Файлы",
     sending_t:"Отправка…",sending_p:"Проверка вашей заявки.",sent_t:"Проверка отправлена!",sent_p:"Вы получите уведомление в боте после проверки.",
@@ -294,6 +294,9 @@ function render(){
   if(tg?.BackButton){ step>0?tg.BackButton.show():tg.BackButton.hide(); }
   window.scrollTo({top:0,behavior:'smooth'});
 }
+function _age(s){ const b=new Date(s); if(isNaN(b)) return 0; const n=new Date();
+  let a=n.getFullYear()-b.getFullYear(); const m=n.getMonth()-b.getMonth();
+  if(m<0||(m===0&&n.getDate()<b.getDate())) a--; return a; }
 function validStep(){
   let ok=true;
   panels[step].querySelectorAll('[data-req]').forEach(el=>{
@@ -301,6 +304,8 @@ function validStep(){
     if(!v) bad=true;
     if(el.name==='email'&&v&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) bad=true;
     if((el.name==='nationality'||el.name==='addr_country')&&v&&v.length>2) bad=true;
+    if(el.name==='dateOfBirth'&&v){ const a=_age(v); if(a<18||a>65){ bad=true;
+      const em=el.parentElement.querySelector('.err-msg'); if(em) em.textContent=t('e_age'); } }
     if(el.type==='file'&&el.files.length===0) bad=true;
     if(bad){ ok=false; if(el.type!=='hidden'&&el.type!=='file') el.classList.add('bad');
       const em=el.parentElement.querySelector('.err-msg')||document.getElementById((el.name||el.id)+'Err')||document.getElementById((el.id||'')+'Err');
