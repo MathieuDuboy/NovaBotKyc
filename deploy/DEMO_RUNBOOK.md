@@ -63,6 +63,28 @@ curl -s -X POST "$URL/api/test/simulate_auth" -H 'Content-Type: application/json
 > Si « Card suspended » : la carte est gelée → la débloquer :
 > `curl -s -X POST "$URL/api/card/unfreeze" -H "Content-Type: application/json" -d '{"uid":<UID>,"card_id":"'$CARD'"}'`
 
+## 📞 Moment 4 — parcours « achat 3DS » complet (OTP puis validation)
+Reproduit un vrai achat en ligne avec vérification 3DS : le client reçoit l'**OTP**,
+puis la **notif de transaction**. (En prod, les 2 arrivent d'Interlace sur le même
+achat ; le bot ne fait que les relayer — la saisie de l'OTP se fait sur la page du
+marchand. En sandbox on déclenche les 2 à la main.)
+```bash
+CARD=<CARD_ID du client>
+# 0) carte financée (sinon refus)
+curl -s -X POST "$URL/api/test/fund_card" -H 'Content-Type: application/json' -H "X-Test-Token: $TOK" \
+  -d '{"uid":<UID>,"card_id":"'$CARD'","amount":"50"}' >/dev/null ; sleep 3
+# 1) OTP 3DS (langue auto du user ; forcer avec "lang":"fr"/"en"/"ru" si besoin)
+curl -s -X POST "$URL/api/test/simulate_3ds" -H 'Content-Type: application/json' -H "X-Test-Token: $TOK" \
+  -d '{"card_id":"'$CARD'","otp":"487213","amount":29.90,"merchant":"Amazon"}' >/dev/null
+# 2) transaction validée -> notif "Payment"
+sleep 2
+curl -s -X POST "$URL/api/test/simulate_auth" -H 'Content-Type: application/json' -H "X-Test-Token: $TOK" \
+  -d '{"card_id":"'$CARD'","amount":"29.90","merchant":"Amazon"}' | python3 -m json.tool
+```
+→ Le client voit dans l'ordre : 🔐 « Vérification 3DS — Code : 487213 », puis 💳 « Payment 29.90 USD · Amazon ».
+- OTP seul (sans paiement) : juste l'étape 1.
+- Le bot **transmet** l'OTP, il ne le valide pas (validation = page marchand / Interlace).
+
 ---
 
 ## Ce que le client fait SEUL (aucun ping)
@@ -71,5 +93,8 @@ bloquer/débloquer, historique, footer (support/tarifs/légal), **ajouter une ca
 choix réseau**, basculer entre cartes, écran « Recharger » (adresse + QR).
 
 ## Non simulable en sandbox (prod uniquement)
-Vrai dépôt USDT (listener WS off), vrai achat marchand, **OTP 3DS**.
+Vrai dépôt USDT on-chain (listener WS off), vrai achat 3DS chez un marchand réel.
+> La **réception de l'OTP** EST simulable (Moment 4) : Interlace n'a pas d'endpoint
+> de simulation 3DS, mais on injecte l'événement de notre côté → le client reçoit
+> bien le code dans Telegram, dans sa langue. Le handler est identique en prod.
 ```
