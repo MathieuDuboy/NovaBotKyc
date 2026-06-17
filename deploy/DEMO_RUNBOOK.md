@@ -1,6 +1,54 @@
 # Nova — Runbook de démo (sandbox)
 
-Le client fait le parcours **dans Telegram** ; toi tu déclenches les **3 événements
+---
+# ✂️ ——— PARTIE À TRANSFÉRER AU CLIENT ——— ✂️
+
+## 👋 Bienvenue sur la démo Nova
+
+Vous allez tester votre carte de A à Z. C'est un **environnement de démonstration** :
+aucune vraie carte, aucun vrai paiement. Pour les étapes liées à l'argent (recharge,
+achat), **je les déclenche en direct de mon côté** — vous n'avez qu'à me prévenir.
+
+**Vos 2 bots Telegram :**
+- 🪪 Vérification d'identité : `https://t.me/novabotkyctestsandbox`
+- 💳 Votre carte : `https://t.me/novabotcardtestsandboxinterbot`
+
+### À faire, dans l'ordre
+1. Ouvrez le **bot Vérification**, tapez **/start**, choisissez votre **langue**.
+2. Remplissez le **formulaire d'identité** (vos infos + photo de la pièce + selfie) et validez.
+3. 📲 **Prévenez-moi** : « KYC envoyé ». → Je valide votre dossier (≈ 1 min).
+4. Vous recevez un **lien vers votre carte** → cliquez dessus.
+5. Dans le **bot Carte**, appuyez sur **« Open my card »** pour ouvrir l'application.
+
+### Explorez librement (sans m'appeler)
+- Voir la carte, **la retourner** pour afficher le numéro / la date / le **CVV**
+- Votre **solde**
+- **Bloquer / débloquer** la carte
+- L'**historique** des opérations
+- **Ajouter une 2ᵉ carte** (bouton « + ») et **choisir le réseau** (Mastercard / Visa)
+- **Basculer** d'une carte à l'autre
+- Ouvrir **« Recharger »** pour voir l'**adresse de dépôt + le QR code**
+- Le **menu du bas** : support, tarifs, mentions légales
+
+### Quand m'appeler / me prévenir
+- 📲 **« KYC envoyé »** → je valide → vous recevez votre carte (étape 3).
+- 📲 **« Je veux voir une recharge »** → je crédite votre carte → vous recevez la
+  notification **« +X USD ajoutés »** et le solde monte.
+- 📲 **« Je veux voir un paiement »** → je simule un achat (ex. Amazon) → vous recevez
+  une **vérification 3DS (code OTP)** puis la **notification de paiement**, et l'opération
+  apparaît dans l'historique. Je peux aussi vous montrer un **paiement refusé**.
+
+### Bon à savoir
+- Tout est en **mode démo** : montants et cartes fictifs.
+- Si une étape bloque, écrivez-moi — je débloque tout de suite.
+- L'application s'affiche dans la **langue choisie** au départ.
+
+# ✂️ ——— FIN PARTIE CLIENT ——— ✂️
+---
+
+## 🔧 Partie interne (Mathieu)
+
+Le client fait le parcours **dans Telegram** ; toi tu déclenches les **événements
 d'argent** en simulation. Voici QUAND il te ping et QUOI lancer.
 
 ## Pré-réglages (une fois)
