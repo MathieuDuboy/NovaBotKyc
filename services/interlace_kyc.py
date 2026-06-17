@@ -295,13 +295,31 @@ async def complete_after_kyc_passed(account_id: str, case_id: Optional[str] = No
             if "40000" not in str(e) and "repeat init" not in str(e).lower():
                 raise
             logger.info(f"[interlace-kyc] sous-compte {account_id} déjà initialisé")
-        # 5 — cardholder sur le sous-compte (1 sous-compte = 1 cardholder).
-        # Idempotent : on réutilise celui déjà stocké si présent (redélivrance webhook).
+        # 5 — cardholder (1 sous-compte = 1 cardholder). Idempotent et anti-orphelin :
+        # on réutilise celui en base, sinon on cherche un cardholder existant côté
+        # Interlace (run précédent échoué après création), sinon on le crée.
         chid = acc.get("cardholder_id")
         if not chid:
-            ch = c.create_cardholder(account_id=account_id, bin_id=bin_id,
-                                     profile=_norm_cardholder_profile(profile), tier="CONSUMER")
-            chid = ch.get("id") if isinstance(ch, dict) else None
+            try:
+                existing = c.list_cardholders(account_id)
+            except Exception as e:
+                logger.warning(f"[interlace-kyc] list_cardholders échec (non bloquant): {e}")
+                existing = []
+            if existing:
+                chid = existing[0].get("id")
+                logger.info(f"[interlace-kyc] cardholder existant réutilisé: {chid}")
+            else:
+                try:
+                    ch = c.create_cardholder(account_id=account_id, bin_id=bin_id,
+                                             profile=_norm_cardholder_profile(profile), tier="CONSUMER")
+                    chid = ch.get("id") if isinstance(ch, dict) else None
+                except Exception as e:
+                    # course : déjà créé entre-temps -> on le récupère
+                    if "010991" in str(e) or "Duplicate" in str(e).lower():
+                        lst = c.list_cardholders(account_id)
+                        chid = lst[0].get("id") if lst else None
+                    if not chid:
+                        raise
         if not chid:
             raise RuntimeError("cardholder: pas d'id")
         # 3b — alimente le sous-compte depuis le compte maître (si montant > 0)
@@ -317,7 +335,7 @@ async def complete_after_kyc_passed(account_id: str, case_id: Optional[str] = No
             if not (master_inf and sub_inf):
                 raise RuntimeError("Infinity wallet introuvable (master/sub)")
             last_err = None
-            for _ in range(4):                       # retry : race juste après init
+            for _ in range(6):                       # retry : race init + 500 transitoires Interlace
                 try:
                     c.transfer_external(
                         from_account=c.account_id, from_balance_id=master_inf["id"],
@@ -327,7 +345,7 @@ async def complete_after_kyc_passed(account_id: str, case_id: Optional[str] = No
                     break
                 except Exception as e:
                     last_err = e
-                    time.sleep(2)
+                    time.sleep(3)
             if last_err:
                 raise last_err
         # 6 — carte prépayée rechargeable (virtuelle), chargée de `amount`

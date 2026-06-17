@@ -217,6 +217,13 @@ class InterlaceV3:
         return self._request("GET", f"/open-api/v3/cardholders/{cardholder_id}",
                              params={"accountId": account_id or self.account_id})
 
+    def list_cardholders(self, account_id: str, page: int = 1, limit: int = 10) -> List[dict]:
+        """Cardholders d'un sous-compte (1 sous-compte = 1 cardholder en consumer).
+        Sert à récupérer un cardholder déjà créé (idempotence/orphelin)."""
+        data = self._request("GET", "/open-api/v3/cardholders",
+                             params={"accountId": account_id, "page": str(page), "limit": str(limit)})
+        return data.get("list", []) if isinstance(data, dict) else (data or [])
+
     def create_prepaid_card(self, *, account_id: str, bin_id: str, cardholder_id: str,
                             reference_id: str, idempotency_key: str,
                             card_mode: str = "VIRTUAL_CARD", amount: Optional[float] = None,
