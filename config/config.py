@@ -85,6 +85,8 @@ for _x in ([ADMIN_CHAT_ID] + list(TELEGRAM_CONFIG.get('admin_chat_ids') or [])):
     except (TypeError, ValueError):
         pass
 GOOGLE_SHEETS_CONFIG = params.get('google_sheets', {})
+# Username du bot CARTE (Bot B) -> lien de handoff envoyé aux clients.
+BOT_B_USERNAME = TELEGRAM_CONFIG.get('bot_b_username') or "novabotcardtestsandboxinterbot"
 API_CONFIG = params.get('api', {})
 PATHS_CONFIG = params.get('paths', {})
 MONGODB_CONFIG = params.get('mongodb', {})
