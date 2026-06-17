@@ -69,14 +69,12 @@ async def setup_menu_commands(application):
             description="Start the bot and select language"),
     ]
 
-    # Admin commands
+    # Admin commands (enrollments uniquement)
     admin_cmds = [
-        BotCommand(
-            command="start",
-            description="Start the admin bot -- only for admins"),
-        BotCommand(command="send", description="Send message to user"),
-        BotCommand(command="send_all", description="Send message to all users"),
-        BotCommand(command="cancel", description="Cancel current operation"),
+        BotCommand(command="start", description="Démarrer"),
+        BotCommand(command="enrollments", description="Lister les enrollments"),
+        BotCommand(command="pending", description="KYC en attente (account_id à valider)"),
+        BotCommand(command="available", description="Cartes prêtes non réclamées + liens"),
     ]
 
     max_retries = 5
@@ -108,25 +106,18 @@ async def setup_menu_commands(application):
             )
             logger.info("Menu commands set up successfully for default scope")
 
-            # Set commands for admin chat using private chats scope
+            # Chats privés (users normaux) : commandes régulières uniquement
             await application.bot.set_my_commands(
-                admin_cmds,
+                commands,
                 scope=BotCommandScopeAllPrivateChats()
             )
-            logger.info(f"Admin commands set up successfully for private chats")
+            logger.info("Regular commands set for private chats")
 
-            # Menu enrichi (enrollments) réservé à CHAQUE admin (scope par chat)
-            admin_enroll_cmds = admin_cmds + [
-                BotCommand(command="enrollments", description="Lister les enrollments"),
-                BotCommand(command="pending", description="KYC en attente (à valider)"),
-                BotCommand(command="available", description="Cartes prêtes non réclamées + liens"),
-                BotCommand(command="finalize", description="Créer la carte: /finalize <account_id>"),
-                BotCommand(command="adminhelp", description="Aide admin"),
-            ]
+            # Menu admin réservé à CHAQUE admin (scope par chat)
             for _aid in (getattr(config, "ADMIN_CHAT_IDS", None) or {ADMIN_CHAT_ID}):
                 try:
                     await application.bot.set_my_commands(
-                        admin_enroll_cmds, scope=BotCommandScopeChat(int(_aid)))
+                        admin_cmds, scope=BotCommandScopeChat(int(_aid)))
                 except Exception as e:
                     logger.error(f"Error setting admin menu for {_aid}: {e}")
 
@@ -194,28 +185,14 @@ def setup_application():
     # Register handlers
     application.add_handler(CommandHandler("start", start))
 
-    # Admin-only command handlers (plusieurs admins : ADMIN_CHAT_IDS)
+    # Commandes admin enrollments (plusieurs admins : ADMIN_CHAT_IDS)
     _admin_ids = getattr(config, "ADMIN_CHAT_IDS", None) or {ADMIN_CHAT_ID}
     admin_filter = filters.Chat(chat_id=set(_admin_ids))
-
-    application.add_handler(
-        CommandHandler("send", send_command, filters=admin_filter)
-    )
-    application.add_handler(
-        CommandHandler("send_all", send_all_command, filters=admin_filter)
-    )
-    application.add_handler(
-        CommandHandler("cancel", cancel_command, filters=admin_filter)
-    )
-    # Commandes admin enrollments (multi-KYC)
-    from telegram_bot.admin_enroll import (cmd_adminhelp, cmd_available,
-                                           cmd_enrollments, cmd_finalize,
+    from telegram_bot.admin_enroll import (cmd_available, cmd_enrollments,
                                            cmd_pending)
     application.add_handler(CommandHandler("enrollments", cmd_enrollments, filters=admin_filter))
     application.add_handler(CommandHandler("pending", cmd_pending, filters=admin_filter))
     application.add_handler(CommandHandler("available", cmd_available, filters=admin_filter))
-    application.add_handler(CommandHandler("finalize", cmd_finalize, filters=admin_filter))
-    application.add_handler(CommandHandler("adminhelp", cmd_adminhelp, filters=admin_filter))
 
     # Regular handlers
     application.add_handler(
