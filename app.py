@@ -1871,7 +1871,13 @@ async def kyc_submit(request: Request):
         import asyncio as _asyncio
         from services.interlace_kyc import poll_and_finalize
         _asyncio.create_task(poll_and_finalize(user_id, result["account_id"]))
-    return JSONResponse(result, status_code=200 if result.get("success") else 502)
+        return JSONResponse(result, status_code=200)
+    # Échec : message clair au mini app (400, pas 502). Cas fréquent : email déjà lié.
+    _m = str(result.get("message") or "")
+    if "bound" in _m.lower() or "registered account" in _m.lower() or "code -1" in _m.lower():
+        result["message"] = "Cet email est déjà utilisé. Merci d'en saisir un autre."
+        result["code"] = "email_taken"
+    return JSONResponse(result, status_code=400)
 
 
 # API background task to process queued requests

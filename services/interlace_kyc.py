@@ -226,6 +226,13 @@ async def submit_enrollment_kyc(
     def _work() -> Dict[str, Any]:
         c = _client()
         email = (profile.get("email") or f"user{user_id}@nova.local").strip()
+        # SANDBOX : on uniquifie l'email par chat_id (+novaXXXX) pour éviter le
+        # "Email already bound" d'Interlace en test (les sous-comptes persistent
+        # même après un reset de notre base). En prod (mode!=dev) : email réel tel quel.
+        if getattr(config, "INTERLACE_MODE", "dev") == "dev" and "@" in email:
+            _local, _dom = email.rsplit("@", 1)
+            _base = _local.split("+")[0]
+            email = f"{_base}+nova{user_id}@{_dom}"
         name = (f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip()
                 or f"user{user_id}")
         # 2.1 — sous-compte sous le compte maître
