@@ -189,7 +189,7 @@ const I18N={
     d_front_t:"Front of the document",d_front_s:"Sharp photo, whole document in frame",d_back_t:"Back (optional)",d_back_s:"Not needed for a passport",
     d_selfie_t:"Take a selfie",d_selfie_s:"Front camera",
     btn_continue:"Continue",btn_submit:"Submit verification",btn_retry:"Retry",step:"Step",
-    e_req:"Required",e_email:"Invalid email",e_2:"2-letter code",e_gender:"Pick one",e_photo:"Photo required",e_age:"Age must be 18-65.",
+    e_req:"Required",e_email:"Invalid email",e_2:"2-letter code",e_gender:"Pick one",e_photo:"Photo required",e_age:"You must be at least 18.",
     err_phone:"Invalid phone number — enter it without the leading 0 (e.g. 612345678).",err_ssn:"Invalid SSN (9 digits, US only).",err_us:"This card requires a US address.",err_live:"Selfie failed the liveness check — retake a clear photo, face fully visible.",err_file:"Photo unreadable — retake a sharp photo of the document.",err_state:"Invalid State/Region (letters/numbers only, e.g. NY or NA).",btn_fix:"Go back & fix",
     e_name:"Latin letters only (A–Z).",e_namelen:"First + last name: 23 characters max.",e_date:"Invalid date.",e_dob_future:"Date can't be in the future.",e_cc:"Country code: 1–3 digits.",e_phone_num:"Phone: 6–15 digits.",e_issue_future:"Issue date can't be in the future.",e_expired:"Document is expired.",e_dates:"Expiry must be after the issue date.",
     r_name:"Name",r_dob:"Birth",r_gender:"Gender",r_nat:"Nationality",r_email:"Email",r_phone:"Phone",r_addr:"Address",r_id:"Document",r_docs:"Files",
@@ -208,7 +208,7 @@ const I18N={
     d_front_t:"Recto de la pièce",d_front_s:"Photo nette, document entier dans le cadre",d_back_t:"Verso (optionnel)",d_back_s:"Inutile pour un passeport",
     d_selfie_t:"Prendre un selfie",d_selfie_s:"Caméra frontale",
     btn_continue:"Continuer",btn_submit:"Envoyer ma vérification",btn_retry:"Réessayer",step:"Étape",
-    e_req:"Requis",e_email:"Email invalide",e_2:"Code 2 lettres",e_gender:"Choisis une option",e_photo:"Photo requise",e_age:"Âge requis : 18 à 65 ans.",
+    e_req:"Requis",e_email:"Email invalide",e_2:"Code 2 lettres",e_gender:"Choisis une option",e_photo:"Photo requise",e_age:"Tu dois avoir au moins 18 ans.",
     err_phone:"Numéro invalide — saisis-le sans le 0 initial (ex. 612345678).",err_ssn:"SSN invalide (9 chiffres, US uniquement).",err_us:"Cette carte exige une adresse US.",err_live:"Le selfie a échoué au test de vivacité — reprends une photo nette, visage bien visible.",err_file:"Photo illisible — reprends une photo nette du document.",err_state:"État/Région invalide (lettres/chiffres, ex. NY ou NA).",btn_fix:"Revenir corriger",
     e_name:"Lettres latines uniquement (A–Z).",e_namelen:"Prénom + nom : 23 caractères max.",e_date:"Date invalide.",e_dob_future:"La date ne peut pas être dans le futur.",e_cc:"Indicatif : 1 à 3 chiffres.",e_phone_num:"Téléphone : 6 à 15 chiffres.",e_issue_future:"La date d'émission ne peut pas être dans le futur.",e_expired:"Le document est expiré.",e_dates:"L'expiration doit être après la date d'émission.",
     r_name:"Nom",r_dob:"Naissance",r_gender:"Genre",r_nat:"Nationalité",r_email:"Email",r_phone:"Téléphone",r_addr:"Adresse",r_id:"Pièce",r_docs:"Fichiers",
@@ -227,7 +227,7 @@ const I18N={
     d_front_t:"Лицевая сторона",d_front_s:"Чёткое фото, документ целиком в кадре",d_back_t:"Оборот (необязательно)",d_back_s:"Не нужно для паспорта",
     d_selfie_t:"Сделать селфи",d_selfie_s:"Фронтальная камера",
     btn_continue:"Продолжить",btn_submit:"Отправить проверку",btn_retry:"Повторить",step:"Шаг",
-    e_req:"Обязательно",e_email:"Неверный email",e_2:"Код 2 буквы",e_gender:"Выберите",e_photo:"Нужно фото",e_age:"Возраст 18-65.",
+    e_req:"Обязательно",e_email:"Неверный email",e_2:"Код 2 буквы",e_gender:"Выберите",e_photo:"Нужно фото",e_age:"Вам должно быть не менее 18 лет.",
     err_phone:"Неверный номер — без ведущего 0 (напр. 612345678).",err_ssn:"Неверный SSN (9 цифр, только США).",err_us:"Для этой карты нужен адрес США.",err_live:"Селфи не прошло проверку — переснимите чёткое фото, лицо полностью видно.",err_file:"Фото нечитаемо — переснимите чёткое фото документа.",err_state:"Неверный штат/регион (буквы/цифры, напр. NY).",btn_fix:"Вернуться и исправить",
     e_name:"Только латинские буквы (A–Z).",e_namelen:"Имя + фамилия: максимум 23 символа.",e_date:"Неверная дата.",e_dob_future:"Дата не может быть в будущем.",e_cc:"Код страны: 1–3 цифры.",e_phone_num:"Телефон: 6–15 цифр.",e_issue_future:"Дата выдачи не может быть в будущем.",e_expired:"Документ просрочен.",e_dates:"Срок действия должен быть позже даты выдачи.",
     r_name:"Имя",r_dob:"Рождение",r_gender:"Пол",r_nat:"Гражданство",r_email:"Email",r_phone:"Телефон",r_addr:"Адрес",r_id:"Документ",r_docs:"Файлы",
@@ -238,8 +238,11 @@ const I18N={
 const tg = window.Telegram?.WebApp; if(tg){tg.ready(); tg.expand();}
 const qs = new URLSearchParams(location.search);
 const uid = qs.get('uid') || tg?.initDataUnsafe?.user?.id || '';
-let lang = (qs.get('lang') || tg?.initDataUnsafe?.user?.language_code || 'en').slice(0,2).toLowerCase();
+// langue = celle CHOISIE dans le bot (passée via ?lang=) ; défaut anglais.
+// On NE retombe PAS sur la langue du client Telegram (évite un français non voulu).
+let lang = (qs.get('lang') || 'en').slice(0,2).toLowerCase();
 if(!I18N[lang]) lang='en';
+try{ document.documentElement.lang = lang; }catch(e){}  // aide le sélecteur de date natif
 const T = I18N[lang];
 document.documentElement.lang=lang;
 const t=k=>T[k]||k;
@@ -321,7 +324,7 @@ function fieldError(el){
     const ln=(document.querySelector('[name=lastName]')?.value||'').trim();
     if(fn.length+ln.length>23) return 'e_namelen'; }
   if(name==='dateOfBirth'){ const b=new Date(v); if(isNaN(b)) return 'e_date';
-    if(b>new Date()) return 'e_dob_future'; const a=_age(v); if(a<18||a>65) return 'e_age'; }
+    if(b>new Date()) return 'e_dob_future'; const a=_age(v); if(a<18) return 'e_age'; }
   if(name==='phoneCountryCode' && !/^\d{1,3}$/.test(v)) return 'e_cc';
   if(name==='phoneNumber' && !/^\d{6,15}$/.test(v)) return 'e_phone_num';
   if(name==='addr_state' && !/^[A-Za-z0-9 ]+$/.test(v)) return 'err_state';
