@@ -191,6 +191,7 @@ const I18N={
     btn_continue:"Continue",btn_submit:"Submit verification",btn_retry:"Retry",step:"Step",
     e_req:"Required",e_email:"Invalid email",e_2:"2-letter code",e_gender:"Pick one",e_photo:"Photo required",e_age:"Age must be 18-65.",
     err_phone:"Invalid phone number — enter it without the leading 0 (e.g. 612345678).",err_ssn:"Invalid SSN (9 digits, US only).",err_us:"This card requires a US address.",err_live:"Selfie failed the liveness check — retake a clear photo, face fully visible.",err_file:"Photo unreadable — retake a sharp photo of the document.",err_state:"Invalid State/Region (letters/numbers only, e.g. NY or NA).",btn_fix:"Go back & fix",
+    e_name:"Latin letters only (A–Z).",e_namelen:"First + last name: 23 characters max.",e_date:"Invalid date.",e_dob_future:"Date can't be in the future.",e_cc:"Country code: 1–3 digits.",e_phone_num:"Phone: 6–15 digits.",e_issue_future:"Issue date can't be in the future.",e_expired:"Document is expired.",e_dates:"Expiry must be after the issue date.",
     r_name:"Name",r_dob:"Birth",r_gender:"Gender",r_nat:"Nationality",r_email:"Email",r_phone:"Phone",r_addr:"Address",r_id:"Document",r_docs:"Files",
     sending_t:"Sending…",sending_p:"Checking your file.",sent_t:"Verification sent!",sent_p:"You'll be notified in the bot once reviewed.",
     kyc_pending_t:"Already in progress",kyc_pending_p:"Your verification is under review — you'll be notified in the bot.",kyc_passed_t:"Already verified ✅",kyc_passed_p:"Your verification is already approved.",
@@ -209,6 +210,7 @@ const I18N={
     btn_continue:"Continuer",btn_submit:"Envoyer ma vérification",btn_retry:"Réessayer",step:"Étape",
     e_req:"Requis",e_email:"Email invalide",e_2:"Code 2 lettres",e_gender:"Choisis une option",e_photo:"Photo requise",e_age:"Âge requis : 18 à 65 ans.",
     err_phone:"Numéro invalide — saisis-le sans le 0 initial (ex. 612345678).",err_ssn:"SSN invalide (9 chiffres, US uniquement).",err_us:"Cette carte exige une adresse US.",err_live:"Le selfie a échoué au test de vivacité — reprends une photo nette, visage bien visible.",err_file:"Photo illisible — reprends une photo nette du document.",err_state:"État/Région invalide (lettres/chiffres, ex. NY ou NA).",btn_fix:"Revenir corriger",
+    e_name:"Lettres latines uniquement (A–Z).",e_namelen:"Prénom + nom : 23 caractères max.",e_date:"Date invalide.",e_dob_future:"La date ne peut pas être dans le futur.",e_cc:"Indicatif : 1 à 3 chiffres.",e_phone_num:"Téléphone : 6 à 15 chiffres.",e_issue_future:"La date d'émission ne peut pas être dans le futur.",e_expired:"Le document est expiré.",e_dates:"L'expiration doit être après la date d'émission.",
     r_name:"Nom",r_dob:"Naissance",r_gender:"Genre",r_nat:"Nationalité",r_email:"Email",r_phone:"Téléphone",r_addr:"Adresse",r_id:"Pièce",r_docs:"Fichiers",
     sending_t:"Envoi en cours…",sending_p:"Vérification de ton dossier.",sent_t:"Vérification envoyée !",sent_p:"Tu seras notifié dans le bot une fois examinée.",
     kyc_pending_t:"Déjà en cours",kyc_pending_p:"Ta vérification est en cours d'examen — tu seras notifié dans le bot.",kyc_passed_t:"Déjà validée ✅",kyc_passed_p:"Ta vérification est déjà approuvée.",
@@ -227,6 +229,7 @@ const I18N={
     btn_continue:"Продолжить",btn_submit:"Отправить проверку",btn_retry:"Повторить",step:"Шаг",
     e_req:"Обязательно",e_email:"Неверный email",e_2:"Код 2 буквы",e_gender:"Выберите",e_photo:"Нужно фото",e_age:"Возраст 18-65.",
     err_phone:"Неверный номер — без ведущего 0 (напр. 612345678).",err_ssn:"Неверный SSN (9 цифр, только США).",err_us:"Для этой карты нужен адрес США.",err_live:"Селфи не прошло проверку — переснимите чёткое фото, лицо полностью видно.",err_file:"Фото нечитаемо — переснимите чёткое фото документа.",err_state:"Неверный штат/регион (буквы/цифры, напр. NY).",btn_fix:"Вернуться и исправить",
+    e_name:"Только латинские буквы (A–Z).",e_namelen:"Имя + фамилия: максимум 23 символа.",e_date:"Неверная дата.",e_dob_future:"Дата не может быть в будущем.",e_cc:"Код страны: 1–3 цифры.",e_phone_num:"Телефон: 6–15 цифр.",e_issue_future:"Дата выдачи не может быть в будущем.",e_expired:"Документ просрочен.",e_dates:"Срок действия должен быть позже даты выдачи.",
     r_name:"Имя",r_dob:"Рождение",r_gender:"Пол",r_nat:"Гражданство",r_email:"Email",r_phone:"Телефон",r_addr:"Адрес",r_id:"Документ",r_docs:"Файлы",
     sending_t:"Отправка…",sending_p:"Проверка вашей заявки.",sent_t:"Проверка отправлена!",sent_p:"Вы получите уведомление в боте после проверки.",
     kyc_pending_t:"Уже в обработке",kyc_pending_p:"Ваша проверка на рассмотрении — уведомление придёт в бот.",kyc_passed_t:"Уже подтверждено ✅",kyc_passed_p:"Ваша проверка уже одобрена.",
@@ -297,23 +300,50 @@ function render(){
 function _age(s){ const b=new Date(s); if(isNaN(b)) return 0; const n=new Date();
   let a=n.getFullYear()-b.getFullYear(); const m=n.getMonth()-b.getMonth();
   if(m<0||(m===0&&n.getDate()<b.getDate())) a--; return a; }
+function _emEl(el){
+  return document.getElementById((el.name||el.id||'')+'Err')
+    || document.getElementById((el.id||'')+'Err')
+    || el.closest('.field')?.querySelector('.err-msg')
+    || el.parentElement?.querySelector('.err-msg'); }
+function showErr(el,key){ if(el.type!=='hidden'&&el.type!=='file') el.classList.add('bad');
+  const em=_emEl(el); if(em){ em.textContent=t(key); em.classList.add('show'); } }
+function clearErr(el){ if(el.classList) el.classList.remove('bad');
+  const em=_emEl(el); if(em) em.classList.remove('show'); }
+// Validation par champ : renvoie une clé d'erreur i18n, ou null si OK.
+function fieldError(el){
+  const name=el.name||el.id, v=(el.value||'').trim();
+  if(el.type==='file') return (el.hasAttribute('data-req')&&el.files.length===0)?'e_photo':null;
+  if(!v) return el.hasAttribute('data-req')?'e_req':null;     // vide : requis -> err, sinon OK
+  if(name==='email' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) return 'e_email';
+  if(name==='firstName'||name==='lastName'){
+    if(!/^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ '\-]*$/.test(v)) return 'e_name';
+    const fn=(document.querySelector('[name=firstName]')?.value||'').trim();
+    const ln=(document.querySelector('[name=lastName]')?.value||'').trim();
+    if(fn.length+ln.length>23) return 'e_namelen'; }
+  if(name==='dateOfBirth'){ const b=new Date(v); if(isNaN(b)) return 'e_date';
+    if(b>new Date()) return 'e_dob_future'; const a=_age(v); if(a<18||a>65) return 'e_age'; }
+  if(name==='phoneCountryCode' && !/^\d{1,3}$/.test(v)) return 'e_cc';
+  if(name==='phoneNumber' && !/^\d{6,15}$/.test(v)) return 'e_phone_num';
+  if(name==='addr_state' && !/^[A-Za-z0-9 ]+$/.test(v)) return 'err_state';
+  if(name==='issueDate' && new Date(v)>new Date()) return 'e_issue_future';
+  if(name==='expiryDate'){ const exp=new Date(v); if(exp<new Date()) return 'e_expired';
+    const iss=document.querySelector('[name=issueDate]')?.value;
+    if(iss && new Date(iss)>exp) return 'e_dates'; }
+  return null;
+}
 function validStep(){
   let ok=true;
-  panels[step].querySelectorAll('[data-req]').forEach(el=>{
-    let bad=false; const v=(el.value||'').trim();
-    if(!v) bad=true;
-    if(el.name==='email'&&v&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) bad=true;
-    if((el.name==='nationality'||el.name==='addr_country')&&v&&v.length>2) bad=true;
-    if(el.name==='dateOfBirth'&&v){ const a=_age(v); if(a<18||a>65){ bad=true;
-      const em=el.parentElement.querySelector('.err-msg'); if(em) em.textContent=t('e_age'); } }
-    if(el.type==='file'&&el.files.length===0) bad=true;
-    if(bad){ ok=false; if(el.type!=='hidden'&&el.type!=='file') el.classList.add('bad');
-      const em=el.parentElement.querySelector('.err-msg')||document.getElementById((el.name||el.id)+'Err')||document.getElementById((el.id||'')+'Err');
-      if(em) em.classList.add('show'); }});
+  panels[step].querySelectorAll('input,select').forEach(el=>{
+    if(el.type==='hidden' && (el.name||el.id)!=='gender') return;
+    const err=fieldError(el);
+    if(err){ ok=false; showErr(el,err); } });
   return ok;
 }
-document.addEventListener('input',e=>{if(e.target.classList){e.target.classList.remove('bad');
-  const em=e.target.parentElement?.querySelector('.err-msg'); if(em)em.classList.remove('show');}});
+// erreurs en temps réel : on valide au blur, on efface dès qu'on corrige
+document.addEventListener('focusout', e=>{ const el=e.target;
+  if(el && el.matches && el.matches('input,select') && (el.name||el.id)){
+    const err=fieldError(el); if(err) showErr(el,err); else clearErr(el); } });
+document.addEventListener('input', e=>{ if(e.target) clearErr(e.target); });
 function buildRecap(){
   const g=v=>document.querySelector(`[name="${v}"]`)?.value||'—';
   const cn=v=>{const c=document.querySelector(`[name="${v}"]`)?.value;return c?`${flag(c)} ${COUNTRY_NAME[c]||c}`:'—';};
