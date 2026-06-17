@@ -78,7 +78,8 @@ DDL = [
     """
     CREATE TABLE IF NOT EXISTS interlace_accounts (
         `id`            BIGINT AUTO_INCREMENT PRIMARY KEY,
-        `USER_ID`       BIGINT NOT NULL,           -- chat_id Telegram
+        `USER_ID`       BIGINT NULL,               -- chat_id Telegram (NULL = enrollment admin non réclamé)
+        `created_by`    BIGINT NULL,               -- admin créateur (enrollments en masse)
         `account_id`    VARCHAR(64),               -- sous-compte Interlace (sub-merchant)
         `cardholder_id` VARCHAR(64),
         `card_id`       VARCHAR(64),               -- id carte Interlace
@@ -105,6 +106,16 @@ def main():
         with conn.cursor() as cur:
             for stmt in DDL:
                 cur.execute(stmt)
+            # migrations idempotentes (multi-enrollment admin) : USER_ID nullable
+            # + colonne created_by.
+            for alter in (
+                "ALTER TABLE interlace_accounts MODIFY `USER_ID` BIGINT NULL",
+                "ALTER TABLE interlace_accounts ADD COLUMN `created_by` BIGINT NULL",
+            ):
+                try:
+                    cur.execute(alter)
+                except Exception:
+                    pass
             cur.execute(
                 "INSERT IGNORE INTO referralcodes "
                 "(`referal code`, `deposit fee`, `foregin fee`, `name`, `valid`) "

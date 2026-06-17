@@ -217,6 +217,7 @@ async def submit_enrollment_kyc(
     selfie: Tuple[str, bytes, str],
     id_back: Optional[Tuple[str, bytes, str]] = None,
     bin_id: Optional[str] = None,
+    admin_mode: bool = False,
 ) -> Dict[str, Any]:
     """GATEWAY : crée un SOUS-COMPTE pour l'utilisateur, uploade pièce+selfie,
     puis soumet le KYC du sous-compte. La carte se crée PLUS TARD, une fois le
@@ -229,7 +230,8 @@ async def submit_enrollment_kyc(
         # SANDBOX : on uniquifie l'email par chat_id (+novaXXXX) pour éviter le
         # "Email already bound" d'Interlace en test (les sous-comptes persistent
         # même après un reset de notre base). En prod (mode!=dev) : email réel tel quel.
-        if getattr(config, "INTERLACE_MODE", "dev") == "dev" and "@" in email:
+        if (getattr(config, "INTERLACE_MODE", "dev") == "dev" and not admin_mode
+                and "@" in email):
             _local, _dom = email.rsplit("@", 1)
             _base = _local.split("+")[0]
             email = f"{_base}+nova{user_id}@{_dom}"
@@ -262,10 +264,17 @@ async def submit_enrollment_kyc(
     try:
         r = await asyncio.to_thread(_work)
         bid = _bin_for(profile, bin_id)
-        await mysql_client.upsert_interlace_account(
-            user_id, account_id=r["account_id"], kyc_case_id=r["case_id"],
-            kyc_status=(r["status"] or KYC_PENDING), bin=str(bid),
-            profile_json=json.dumps(profile, ensure_ascii=False))
+        if admin_mode:
+            # enrollment NON réclamé : USER_ID NULL, créé par l'admin
+            await mysql_client.create_enrollment(
+                created_by=user_id, account_id=r["account_id"], kyc_case_id=r["case_id"],
+                kyc_status=(r["status"] or KYC_PENDING), bin=str(bid),
+                profile_json=json.dumps(profile, ensure_ascii=False))
+        else:
+            await mysql_client.upsert_interlace_account(
+                user_id, account_id=r["account_id"], kyc_case_id=r["case_id"],
+                kyc_status=(r["status"] or KYC_PENDING), bin=str(bid),
+                profile_json=json.dumps(profile, ensure_ascii=False))
         logger.info(f"[interlace-kyc] user={user_id} sous-compte={r['account_id']} "
                     f"case={r['case_id']} status={r['status']} bin={bid}")
         # Confirmation immédiate dans le chat (avant le résultat du polling/webhook).
@@ -281,12 +290,15 @@ async def submit_enrollment_kyc(
 async def complete_after_kyc_passed(account_id: str, case_id: Optional[str] = None) -> Dict[str, Any]:
     """KYC du sous-compte approuvé -> crée le CARDHOLDER puis la CARTE.
     Routé par account_id (sous-compte). Idempotent. ⚠️ À valider live."""
-    user_id = await mysql_client.get_user_id_by_account_id(account_id)
-    if not user_id:
-        logger.warning(f"[interlace-kyc] PASSED: sous-compte {account_id} non rattaché à un user")
+    # account_id-centric : supporte le flux normal (USER_ID) ET les enrollments
+    # admin (USER_ID NULL, created_by). On notifie l'owner s'il existe, sinon l'admin.
+    acc = await mysql_client.get_account_by_account_id(account_id) or {}
+    if not acc:
+        logger.warning(f"[interlace-kyc] PASSED: sous-compte {account_id} inconnu en base")
         return {"success": False, "message": "sous-compte inconnu"}
-
-    acc = await mysql_client.get_interlace_account(user_id) or {}
+    user_id = acc.get("USER_ID")
+    notify_target = user_id or acc.get("created_by")
+    is_admin_enroll = not user_id
     if acc.get("card_id"):
         logger.info(f"[interlace-kyc] sous-compte {account_id}: carte déjà créée, skip")
         return {"success": True, "user_id": user_id, "card_id": acc["card_id"], "skipped": True}
@@ -399,15 +411,29 @@ async def complete_after_kyc_passed(account_id: str, case_id: Optional[str] = No
         # 8 — handoff : token unique -> lien vers Bot B (utilisation de la carte)
         token = uuid.uuid4().hex
         link = f"https://t.me/{BOT_B_USERNAME}?start={token}"
-        await mysql_client.upsert_interlace_account(
-            user_id, cardholder_id=r["cardholder_id"], card_id=r["card_id"],
+        # sauvegarde PAR account_id (multi-enrollment safe)
+        await mysql_client.update_account_by_account_id(
+            account_id, cardholder_id=r["cardholder_id"], card_id=r["card_id"],
             card_number=r["card_number"], kyc_status=KYC_PASSED, handoff_token=token)
         last4 = str(r.get("card_number") or "")[-4:]
-        lang = await _user_lang(user_id)
-        await _notify(user_id, _msg("ready", lang,
-                                    extra=(f" (•••• {last4})" if last4 else ""), link=link))
-        logger.info(f"[interlace-kyc] user={user_id} carte prête card_id={r['card_id']} "
-                    f"vidée={r.get('emptied')} token={token}")
+        try:
+            prof = json.loads(acc.get("profile_json") or "{}")
+        except Exception:
+            prof = {}
+        lang = (prof.get("lang") or "en")
+        if is_admin_enroll:
+            # enrollment admin : on envoie le lien à l'admin, identifié par email/nom
+            who = prof.get("email") or f"{prof.get('firstName','')} {prof.get('lastName','')}".strip() or account_id
+            if notify_target:
+                await _notify(notify_target,
+                              f"✅ Carte prête pour {who}"
+                              + (f" (•••• {last4})" if last4 else "")
+                              + f"\nLien à transmettre :\n{link}")
+        else:
+            await _notify(notify_target, _msg("ready", lang,
+                                              extra=(f" (•••• {last4})" if last4 else ""), link=link))
+        logger.info(f"[interlace-kyc] enrollment account={account_id} carte prête "
+                    f"card_id={r['card_id']} owner={user_id} admin={acc.get('created_by')} token={token}")
         return {"success": True, "user_id": user_id, "link": link, **r}
     except Exception as e:
         logger.error(f"[interlace-kyc] complete_after_kyc_passed account={account_id} échec: {e}")

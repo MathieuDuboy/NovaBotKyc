@@ -760,6 +760,44 @@ class MySQLClient:
             (account_id,))
         return rows[0]["USER_ID"] if rows else None
 
+    # ── multi-enrollment (admin) : enregistrements identifiés par account_id ────
+    async def get_account_by_account_id(self, account_id: str) -> Optional[dict]:
+        rows = await self.execute_query_async(
+            "SELECT * FROM interlace_accounts WHERE `account_id`=%s LIMIT 1", (account_id,))
+        return rows[0] if rows else None
+
+    async def create_enrollment(self, *, created_by: int, account_id: str = None,
+                                kyc_case_id: str = None, kyc_status: str = None,
+                                bin: str = None, profile_json: str = None) -> int:
+        """Crée un enrollment NON réclamé (USER_ID NULL) pour le compte admin.
+        Identifié par account_id ; un client le réclamera via le lien de handoff."""
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return await self.execute_query_async(
+            "INSERT INTO interlace_accounts (`USER_ID`,`created_by`,`account_id`,"
+            "`kyc_status`,`kyc_case_id`,`bin`,`profile_json`,`created_at`,`updated_at`) "
+            "VALUES (NULL,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (created_by, account_id, kyc_status, kyc_case_id, bin, profile_json, now, now),
+            fetch=False)
+
+    async def update_account_by_account_id(self, account_id: str, **fields) -> int:
+        """Met à jour une ligne par account_id (multi-enrollment safe)."""
+        allowed = ("cardholder_id", "card_id", "card_number", "bin", "kyc_status",
+                   "kyc_case_id", "handoff_token", "USER_ID")
+        sets = {k: v for k, v in fields.items() if k in allowed and v is not None}
+        if not sets:
+            return 0
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cols = ", ".join([f"`{k}`=%s" for k in sets] + ["`updated_at`=%s"])
+        vals = list(sets.values()) + [now, account_id]
+        return await self.execute_query_async(
+            f"UPDATE interlace_accounts SET {cols} WHERE `account_id`=%s",
+            tuple(vals), fetch=False)
+
+    async def list_enrollments_by_creator(self, created_by: int) -> list:
+        return await self.execute_query_async(
+            "SELECT * FROM interlace_accounts WHERE `created_by`=%s ORDER BY `created_at` DESC",
+            (created_by,)) or []
+
     async def get_user_id_by_cardholder_id(self, cardholder_id: str) -> Optional[int]:
         """Reverse lookup MoR : cardholder_id -> user Telegram (routing webhook KYC)."""
         rows = await self.execute_query_async(

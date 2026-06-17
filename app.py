@@ -1746,6 +1746,38 @@ async def admin_finalize_kyc(account_id: str, request: Request):
     return {"ok": bool(res.get("success")), **res}
 
 
+@app.get("/api/admin/enrollments")
+async def admin_enrollments(request: Request):
+    """Liste les enrollments créés par l'admin (multi-KYC) + leurs liens de handoff.
+    Protégé par X-Admin-Token."""
+    expected = getattr(config, "ADMIN_API_TOKEN", None)
+    if not expected or "<A_REMPLIR" in str(expected):
+        raise HTTPException(status_code=403, detail="admin endpoint disabled")
+    if request.headers.get("x-admin-token") != str(expected):
+        raise HTTPException(status_code=403, detail="forbidden")
+    from services.mysql_service import mysql_client as _mc
+    from services.interlace_kyc import BOT_B_USERNAME
+    admin_id = int(getattr(config, "ADMIN_CHAT_ID", 0) or 0)
+    rows = await _mc.list_enrollments_by_creator(admin_id)
+    out = []
+    for r in rows:
+        try:
+            prof = json.loads(r.get("profile_json") or "{}")
+        except Exception:
+            prof = {}
+        tok = r.get("handoff_token")
+        out.append({
+            "account_id": r.get("account_id"),
+            "email": prof.get("email"),
+            "name": f"{prof.get('firstName', '')} {prof.get('lastName', '')}".strip(),
+            "kyc_status": r.get("kyc_status"),
+            "card_id": r.get("card_id"),
+            "claimed_by": r.get("USER_ID"),
+            "link": (f"https://t.me/{BOT_B_USERNAME}?start={tok}" if tok else None),
+        })
+    return {"success": True, "count": len(out), "enrollments": out}
+
+
 @app.get("/api/handoff")
 async def handoff(token: str):
     """Bot B (interlace_bot) résout un token de lien -> binding carte de l'user.
@@ -1806,17 +1838,21 @@ async def kyc_submit(request: Request):
         return JSONResponse({"success": False, "message": "uid manquant/invalide"},
                             status_code=400)
 
-    # Anti-doublon : un KYC déjà en cours / validé bloque une nouvelle soumission.
+    # Mode ADMIN : le compte admin peut créer PLUSIEURS enrollments (1 par client)
+    # -> on saute l'anti-doublon et on enregistre en USER_ID NULL / created_by=admin.
     from services.mysql_service import mysql_client as _mc
-    existing = await _mc.get_interlace_account(user_id)
-    if existing:
-        _st = str(existing.get("kyc_status") or "").upper()
-        if _st == "PENDING":
-            return JSONResponse({"success": False, "code": "kyc_pending",
-                                 "message": "Vérification déjà en cours."}, status_code=409)
-        if _st in ("PASSED", "ACTIVE"):
-            return JSONResponse({"success": False, "code": "kyc_passed",
-                                 "message": "Vérification déjà validée."}, status_code=409)
+    is_admin = (user_id == int(getattr(config, "ADMIN_CHAT_ID", 0) or 0))
+    if not is_admin:
+        # Anti-doublon : un KYC déjà en cours / validé bloque une nouvelle soumission.
+        existing = await _mc.get_interlace_account(user_id)
+        if existing:
+            _st = str(existing.get("kyc_status") or "").upper()
+            if _st == "PENDING":
+                return JSONResponse({"success": False, "code": "kyc_pending",
+                                     "message": "Vérification déjà en cours."}, status_code=409)
+            if _st in ("PASSED", "ACTIVE"):
+                return JSONResponse({"success": False, "code": "kyc_passed",
+                                     "message": "Vérification déjà validée."}, status_code=409)
 
     profile = {
         "firstName": (form.get("firstName") or "").strip(),
@@ -1862,7 +1898,8 @@ async def kyc_submit(request: Request):
 
     try:
         from services.interlace_kyc import submit_enrollment_kyc
-        result = await submit_enrollment_kyc(user_id, profile, id_front, selfie, id_back)
+        result = await submit_enrollment_kyc(user_id, profile, id_front, selfie, id_back,
+                                             admin_mode=is_admin)
     except Exception as e:
         logger.error(f"[kyc_submit] user={form.get('uid')} échec: {e}")
         return JSONResponse({"success": False, "message": str(e)}, status_code=500)
