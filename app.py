@@ -1757,8 +1757,7 @@ async def admin_enrollments(request: Request):
         raise HTTPException(status_code=403, detail="forbidden")
     from services.mysql_service import mysql_client as _mc
     from services.interlace_kyc import BOT_B_USERNAME
-    admin_id = int(getattr(config, "ADMIN_CHAT_ID", 0) or 0)
-    rows = await _mc.list_enrollments_by_creator(admin_id)
+    rows = await _mc.list_all_enrollments()
     out = []
     for r in rows:
         try:
@@ -1772,6 +1771,7 @@ async def admin_enrollments(request: Request):
             "name": f"{prof.get('firstName', '')} {prof.get('lastName', '')}".strip(),
             "kyc_status": r.get("kyc_status"),
             "card_id": r.get("card_id"),
+            "created_by": r.get("created_by"),
             "claimed_by": r.get("USER_ID"),
             "link": (f"https://t.me/{BOT_B_USERNAME}?start={tok}" if tok else None),
         })
@@ -1841,7 +1841,7 @@ async def kyc_submit(request: Request):
     # Mode ADMIN : le compte admin peut créer PLUSIEURS enrollments (1 par client)
     # -> on saute l'anti-doublon et on enregistre en USER_ID NULL / created_by=admin.
     from services.mysql_service import mysql_client as _mc
-    is_admin = (user_id == int(getattr(config, "ADMIN_CHAT_ID", 0) or 0))
+    is_admin = user_id in getattr(config, "ADMIN_CHAT_IDS", set())
     if not is_admin:
         # Anti-doublon : un KYC déjà en cours / validé bloque une nouvelle soumission.
         existing = await _mc.get_interlace_account(user_id)

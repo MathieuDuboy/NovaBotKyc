@@ -75,6 +75,15 @@ PUBLIC_KEY_HEX = TELEGRAM_CONFIG.get(
     "e7bf03a2fa4602af4580703d88dda5bb59f32ed8b02a56c187fe7d34caed242d")
 TELEGRAM_MINIAPP_TOKEN = TELEGRAM_CONFIG.get('miniapp_token', '')
 ADMIN_CHAT_ID = TELEGRAM_CONFIG.get('admin_chat_id', 0)
+# Admins autorisés au multi-enrollment (création de N KYC + liens). Liste
+# `telegram.admin_chat_ids` (+ admin_chat_id pour rétro-compat).
+ADMIN_CHAT_IDS = set()
+for _x in ([ADMIN_CHAT_ID] + list(TELEGRAM_CONFIG.get('admin_chat_ids') or [])):
+    try:
+        if int(_x):
+            ADMIN_CHAT_IDS.add(int(_x))
+    except (TypeError, ValueError):
+        pass
 GOOGLE_SHEETS_CONFIG = params.get('google_sheets', {})
 API_CONFIG = params.get('api', {})
 PATHS_CONFIG = params.get('paths', {})

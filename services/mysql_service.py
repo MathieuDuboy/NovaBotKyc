@@ -798,6 +798,12 @@ class MySQLClient:
             "SELECT * FROM interlace_accounts WHERE `created_by`=%s ORDER BY `created_at` DESC",
             (created_by,)) or []
 
+    async def list_all_enrollments(self) -> list:
+        """Tous les enrollments admin (created_by renseigné), tous admins confondus."""
+        return await self.execute_query_async(
+            "SELECT * FROM interlace_accounts WHERE `created_by` IS NOT NULL "
+            "ORDER BY `created_at` DESC") or []
+
     async def get_user_id_by_cardholder_id(self, cardholder_id: str) -> Optional[int]:
         """Reverse lookup MoR : cardholder_id -> user Telegram (routing webhook KYC)."""
         rows = await self.execute_query_async(
