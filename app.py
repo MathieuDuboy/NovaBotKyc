@@ -1700,15 +1700,20 @@ async def handoff(token: str):
     Renvoie account_id / cardholder_id / card_id pour piloter la carte Interlace."""
     from services.mysql_service import mysql_client as _mc
     rows = await _mc.execute_query_async(
-        "SELECT `USER_ID`,`account_id`,`cardholder_id`,`card_id`,`card_number`,`bin`,`kyc_status` "
+        "SELECT `USER_ID`,`account_id`,`cardholder_id`,`card_id`,`card_number`,`bin`,`kyc_status`,`profile_json` "
         "FROM interlace_accounts WHERE `handoff_token`=%s LIMIT 1", (token,))
     if not rows:
         raise HTTPException(status_code=404, detail="token inconnu")
     r = rows[0]
+    lang = "en"
+    try:
+        lang = json.loads(r.get("profile_json") or "{}").get("lang") or "en"
+    except Exception:
+        pass
     return {"user_id": r.get("USER_ID"),
             "account_id": r.get("account_id"), "cardholder_id": r.get("cardholder_id"),
             "card_id": r.get("card_id"), "card_number": r.get("card_number"),
-            "bin": r.get("bin"), "kyc_status": r.get("kyc_status")}
+            "bin": r.get("bin"), "kyc_status": r.get("kyc_status"), "lang": lang}
 
 
 @app.get("/api/kyc_status")
