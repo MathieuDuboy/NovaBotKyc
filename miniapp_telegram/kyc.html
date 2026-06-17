@@ -89,8 +89,8 @@
 
       <section class="panel" data-tk="s_identity">
         <div class="row">
-          <div class="field"><label data-i18n="l_first"></label><input name="firstName" data-req placeholder="Jean"><div class="err-msg" data-i18n="e_req"></div></div>
-          <div class="field"><label data-i18n="l_last"></label><input name="lastName" data-req placeholder="Dupont"><div class="err-msg" data-i18n="e_req"></div></div>
+          <div class="field"><label data-i18n="l_first"></label><input name="firstName" data-req placeholder="John"><div class="err-msg" data-i18n="e_req"></div></div>
+          <div class="field"><label data-i18n="l_last"></label><input name="lastName" data-req placeholder="Smith"><div class="err-msg" data-i18n="e_req"></div></div>
         </div>
         <div class="hint" data-i18n="h_name"></div>
         <label data-i18n="l_dob"></label>
@@ -108,11 +108,11 @@
 
       <section class="panel" data-tk="s_contact">
         <label data-i18n="l_email"></label>
-        <div class="field"><input name="email" type="email" data-req placeholder="name@email.com"><div class="err-msg" data-i18n="e_email"></div></div>
+        <div class="field"><input name="email" type="email" data-req placeholder="john@example.com"><div class="err-msg" data-i18n="e_email"></div></div>
         <label data-i18n="l_phone"></label>
         <div class="row">
-          <div class="field" style="max-width:96px"><input name="phoneCountryCode" data-req placeholder="33" inputmode="numeric"><div class="err-msg" data-i18n="e_req"></div></div>
-          <div class="field grow2"><input name="phoneNumber" data-req placeholder="612345678" inputmode="numeric"><div class="err-msg" data-i18n="e_req"></div></div>
+          <div class="field" style="max-width:96px"><input name="phoneCountryCode" data-req placeholder="1" inputmode="numeric"><div class="err-msg" data-i18n="e_req"></div></div>
+          <div class="field grow2"><input name="phoneNumber" data-req placeholder="2025550123" inputmode="numeric"><div class="err-msg" data-i18n="e_req"></div></div>
         </div>
         <div class="hint" data-i18n="h_phone"></div>
       </section>
@@ -123,7 +123,7 @@
         <input name="addr_line2" data-i18n-ph="ph_line2" style="margin-top:8px">
         <div class="row">
           <div class="field grow2"><label data-i18n="l_city"></label><input name="addr_city" data-req placeholder="New York"><div class="err-msg" data-i18n="e_req"></div></div>
-          <div class="field"><label data-i18n="l_state"></label><input name="addr_state" data-req maxlength="40" placeholder="NY / Gironde"><div class="err-msg" data-i18n="e_req"></div></div>
+          <div class="field"><label data-i18n="l_state"></label><input name="addr_state" data-req maxlength="40" placeholder="NY"><div class="err-msg" data-i18n="e_req"></div></div>
         </div>
         <div class="row">
           <div class="field"><label data-i18n="l_postal"></label><input name="addr_postal" data-req placeholder="10001"><div class="err-msg" data-i18n="e_req"></div></div>
@@ -140,7 +140,7 @@
               <option value="Government-Issued ID Card" data-i18n="t_idcard"></option>
               <option value="DLN" data-i18n="t_dln"></option>
             </select></div>
-          <div class="field grow2"><label data-i18n="l_idnum"></label><input name="nationalId" data-req placeholder="G12345678"><div class="err-msg" data-i18n="e_req"></div></div>
+          <div class="field grow2"><label data-i18n="l_idnum"></label><input name="nationalId" data-req placeholder="123456789"><div class="err-msg" data-i18n="e_req"></div></div>
         </div>
         <div class="row">
           <div class="field"><label data-i18n="l_issue"></label><input name="issueDate" type="date"></div>
@@ -177,7 +177,7 @@
 
 <script>
 const I18N={
-  en:{title:"Identity verification",subtitle:"A few steps to get your card. Data encrypted, verified by Interlace.",
+  en:{title:"Identity verification",subtitle:"A few steps to get your card. Your data is encrypted and securely verified.",
     s_identity:"Identity",s_contact:"Contact",s_address:"Address",s_id:"ID document",s_selfie:"Selfie",s_review:"Review",
     l_first:"First name",l_last:"Last name",l_dob:"Date of birth",l_gender:"Gender",g_m:"Male",g_f:"Female",l_nat:"Nationality",
     l_email:"Email",l_phone:"Phone",l_addr:"Address",l_city:"City",l_state:"State/Region",l_postal:"Postal code",l_country:"Country",sel_country:"Select a country…",
@@ -196,7 +196,7 @@ const I18N={
     sending_t:"Sending…",sending_p:"Checking your file.",sent_t:"Verification sent!",sent_p:"You'll be notified in the bot once reviewed.",
     kyc_pending_t:"Already in progress",kyc_pending_p:"Your verification is under review — you'll be notified in the bot.",kyc_passed_t:"Already verified ✅",kyc_passed_p:"Your verification is already approved.",
     fail_t:"Failed",fail_p:"Your verification couldn't be submitted. Please check your information and try again.",neterr_t:"Network error",idmiss_t:"Missing ID",idmiss_p:"Reopen the form from the bot."},
-  fr:{title:"Vérification d'identité",subtitle:"Quelques étapes pour obtenir ta carte. Données chiffrées, vérifiées par Interlace.",
+  fr:{title:"Vérification d'identité",subtitle:"Quelques étapes pour obtenir ta carte. Données chiffrées et vérifiées en toute sécurité.",
     s_identity:"Identité",s_contact:"Contact",s_address:"Adresse",s_id:"Pièce d'identité",s_selfie:"Selfie",s_review:"Vérification",
     l_first:"Prénom",l_last:"Nom",l_dob:"Date de naissance",l_gender:"Genre",g_m:"Homme",g_f:"Femme",l_nat:"Nationalité",
     l_email:"Email",l_phone:"Téléphone",l_addr:"Adresse",l_city:"Ville",l_state:"État/Région",l_postal:"Code postal",l_country:"Pays",sel_country:"Choisir un pays…",
@@ -215,7 +215,7 @@ const I18N={
     sending_t:"Envoi en cours…",sending_p:"Vérification de ton dossier.",sent_t:"Vérification envoyée !",sent_p:"Tu seras notifié dans le bot une fois examinée.",
     kyc_pending_t:"Déjà en cours",kyc_pending_p:"Ta vérification est en cours d'examen — tu seras notifié dans le bot.",kyc_passed_t:"Déjà validée ✅",kyc_passed_p:"Ta vérification est déjà approuvée.",
     fail_t:"Échec",fail_p:"Ta vérification n'a pas pu être envoyée. Vérifie tes informations et réessaie.",neterr_t:"Erreur réseau",idmiss_t:"Identifiant manquant",idmiss_p:"Rouvre le formulaire depuis le bot."},
-  ru:{title:"Подтверждение личности",subtitle:"Несколько шагов для получения карты. Данные зашифрованы, проверка через Interlace.",
+  ru:{title:"Подтверждение личности",subtitle:"Несколько шагов для получения карты. Данные зашифрованы и надёжно проверяются.",
     s_identity:"Личные данные",s_contact:"Контакты",s_address:"Адрес",s_id:"Документ",s_selfie:"Селфи",s_review:"Проверка",
     l_first:"Имя",l_last:"Фамилия",l_dob:"Дата рождения",l_gender:"Пол",g_m:"Мужской",g_f:"Женский",l_nat:"Гражданство",
     l_email:"Эл. почта",l_phone:"Телефон",l_addr:"Адрес",l_city:"Город",l_state:"Штат/Регион",l_postal:"Индекс",l_country:"Страна",sel_country:"Выберите страну…",

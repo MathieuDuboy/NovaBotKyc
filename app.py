@@ -1821,7 +1821,10 @@ async def api_profile(uid: int):
 
 @app.get("/api/kyc_status")
 async def kyc_status(uid: int):
-    """Statut KYC d'un user (pour bloquer le formulaire au chargement)."""
+    """Statut KYC d'un user (pour bloquer le formulaire au chargement).
+    Les ADMINS ne sont jamais bloqués (ils créent plusieurs KYC)."""
+    if uid in getattr(config, "ADMIN_CHAT_IDS", set()):
+        return {"status": "NONE", "admin": True}
     from services.mysql_service import mysql_client as _mc
     acc = await _mc.get_interlace_account(uid)
     return {"status": (acc.get("kyc_status") if acc else None) or "NONE"}
@@ -1849,10 +1852,10 @@ async def kyc_submit(request: Request):
             _st = str(existing.get("kyc_status") or "").upper()
             if _st == "PENDING":
                 return JSONResponse({"success": False, "code": "kyc_pending",
-                                     "message": "Vérification déjà en cours."}, status_code=409)
+                                     "message": "Verification already in progress."}, status_code=409)
             if _st in ("PASSED", "ACTIVE"):
                 return JSONResponse({"success": False, "code": "kyc_passed",
-                                     "message": "Vérification déjà validée."}, status_code=409)
+                                     "message": "Verification already approved."}, status_code=409)
 
     profile = {
         "firstName": (form.get("firstName") or "").strip(),
