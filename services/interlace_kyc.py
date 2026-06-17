@@ -35,7 +35,7 @@ from utils.logger import logger
 # 070033 "card type invalid"). Validé live : ...4275 (type1) accepté par prepaid-card.
 BIN_VISA_49387519 = "1833348583382454275"   # Visa, 3DS, carte physique (type 1 = prepaid)
 BIN_MC_537100 = "1939632604887552001"        # Mastercard, 3DS (type 1 = prepaid)
-DEFAULT_BIN_ID = BIN_VISA_49387519
+DEFAULT_BIN_ID = BIN_MC_537100   # Bot A crée TOUJOURS la 1ère carte en 537100
 # numéro BIN -> binId (les 2 produits proposés au client)
 AVAILABLE_BINS = {"49387519": BIN_VISA_49387519, "537100": BIN_MC_537100}
 # pays (ISO-2) -> binId (pas d'EUR dispo : tout retombe sur le défaut US)
