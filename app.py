@@ -1720,6 +1720,21 @@ async def handoff(token: str):
             "profile": profile}
 
 
+@app.get("/api/profile")
+async def api_profile(uid: int):
+    """Profil KYC d'un user (par chat_id) -> permet à Bot B de créer un cardholder
+    d'un autre réseau sans forcer l'user à recliquer son lien de handoff."""
+    from services.mysql_service import mysql_client as _mc
+    acc = await _mc.get_interlace_account(uid)
+    if not acc:
+        return JSONResponse({"success": False}, status_code=404)
+    try:
+        profile = json.loads(acc.get("profile_json") or "{}")
+    except Exception:
+        profile = {}
+    return {"success": True, "profile": profile}
+
+
 @app.get("/api/kyc_status")
 async def kyc_status(uid: int):
     """Statut KYC d'un user (pour bloquer le formulaire au chargement)."""
