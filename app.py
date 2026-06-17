@@ -1779,9 +1779,10 @@ async def admin_enrollments(request: Request):
 
 
 @app.get("/api/handoff")
-async def handoff(token: str):
-    """Bot B (interlace_bot) résout un token de lien -> binding carte de l'user.
-    Renvoie account_id / cardholder_id / card_id pour piloter la carte Interlace."""
+async def handoff(token: str, claimed_by: int = None):
+    """Bot B résout un token de lien -> binding carte de l'user.
+    `claimed_by` (chat_id du client qui clique) : ATTRIBUTION à usage UNIQUE —
+    une fois réclamé par un user, le lien refuse tout autre user."""
     from services.mysql_service import mysql_client as _mc
     rows = await _mc.execute_query_async(
         "SELECT `USER_ID`,`account_id`,`cardholder_id`,`card_id`,`card_number`,`bin`,`kyc_status`,`profile_json` "
@@ -1789,6 +1790,15 @@ async def handoff(token: str):
     if not rows:
         raise HTTPException(status_code=404, detail="token inconnu")
     r = rows[0]
+    # Attribution à usage unique : si déjà réclamé par un AUTRE user -> refus.
+    owner = r.get("USER_ID")
+    if claimed_by is not None:
+        if owner and int(owner) != int(claimed_by):
+            raise HTTPException(status_code=409, detail="link already claimed")
+        if not owner:
+            await _mc.update_account_by_account_id(r.get("account_id"), USER_ID=int(claimed_by))
+            owner = int(claimed_by)
+            r["USER_ID"] = owner
     lang = "en"
     profile = {}
     try:

@@ -3,9 +3,9 @@
 
 Usage (depuis /opt/nova/kyc_bot) :
   ./venv/bin/python deploy/enrollments.py            # tout
-  ./venv/bin/python deploy/enrollments.py pending    # en attente (PENDING/NONE)
-  ./venv/bin/python deploy/enrollments.py rejected   # refusés (CANCELED/REJECTED...)
-  ./venv/bin/python deploy/enrollments.py ready       # carte créée (PASSED + card)
+  ./venv/bin/python deploy/enrollments.py pending    # en attente
+  ./venv/bin/python deploy/enrollments.py rejected   # refusés
+  ./venv/bin/python deploy/enrollments.py unclaimed  # carte créée MAIS non réclamée (+ liens)
 """
 import json
 import os
@@ -14,7 +14,10 @@ import sys
 import pymysql
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-m = json.load(open(os.path.join(HERE, "config/params.json")))["mysql"]
+params = json.load(open(os.path.join(HERE, "config/params.json")))
+m = params["mysql"]
+BOT_B = (params.get("telegram", {}).get("bot_b_username")
+         or "novabotcardtestsandboxinterbot")
 flt = (sys.argv[1].lower() if len(sys.argv) > 1 else "all")
 
 PENDING = ("PENDING", "NONE", "")
@@ -34,27 +37,38 @@ def keep(r):
         return st in PENDING
     if flt == "rejected":
         return st in REJECTED
-    if flt == "ready":
-        return bool(r.get("card_id"))
+    if flt == "unclaimed":               # carte créée mais aucun user ne l'a réclamée
+        return bool(r.get("card_id")) and not r.get("USER_ID")
     return True
 
 
-print(f"{'CRÉÉ':16} {'STATUT':9} {'EMAIL':26} {'OWNER':12} {'ADMIN':12} {'CARTE':5} ACCOUNT_ID")
-print("-" * 120)
-n = 0
-for r in rows:
-    if not keep(r):
-        continue
-    n += 1
+def info(r):
     try:
-        prof = json.loads(r.get("profile_json") or "{}")
+        p = json.loads(r.get("profile_json") or "{}")
     except Exception:
-        prof = {}
-    print(f"{str(r.get('created_at'))[:16]:16} "
-          f"{(r.get('kyc_status') or '-'):9} "
-          f"{(prof.get('email') or '-')[:25]:26} "
-          f"{str(r.get('USER_ID') or '-'):12} "
-          f"{str(r.get('created_by') or '-'):12} "
-          f"{('oui' if r.get('card_id') else 'non'):5} "
-          f"{r.get('account_id') or '-'}")
-print(f"\n{n} enrollment(s) [{flt}]   (OWNER=client réclamant · ADMIN=créateur)")
+        p = {}
+    name = f"{p.get('firstName', '')} {p.get('lastName', '')}".strip()
+    return (p.get("email") or "-"), (name or "-")
+
+
+n = 0
+if flt == "unclaimed":
+    print("Validés NON réclamés (lien à transmettre) :\n")
+    for r in rows:
+        if not keep(r):
+            continue
+        n += 1
+        email, name = info(r)
+        tok = r.get("handoff_token")
+        link = f"https://t.me/{BOT_B}?start={tok}" if tok else "(pas de token)"
+        print(f"• {email}  |  {name}\n  {link}\n")
+else:
+    print(f"{'STATUT':10} {'EMAIL':30} NOM PRÉNOM")
+    print("-" * 70)
+    for r in rows:
+        if not keep(r):
+            continue
+        n += 1
+        email, name = info(r)
+        print(f"{(r.get('kyc_status') or '-'):10} {email[:29]:30} {name}")
+print(f"\n{n} enrollment(s) [{flt}]")
