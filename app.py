@@ -1674,12 +1674,18 @@ async def kyc_form_page():
 
 
 @app.post("/api/admin/finalize_kyc")
-async def admin_finalize_kyc(account_id: str):
+async def admin_finalize_kyc(account_id: str, request: Request):
     """SANDBOX/admin : après approbation manuelle Interlace d'un sous-compte,
     vérifie qu'il est PASSED puis déroule cardholder + carte + notif user.
-    Sert à tester le parcours A→Z quand le KYC est approuvé en batch."""
+    Sert à tester le parcours A→Z quand le KYC est approuvé en batch.
+    Protégé par header X-Admin-Token (== config.ADMIN_API_TOKEN)."""
     if not getattr(config, "TESTING_MODE", False):
         raise HTTPException(status_code=403, detail="testing only")
+    expected = getattr(config, "ADMIN_API_TOKEN", None)
+    if not expected or "<A_REMPLIR" in str(expected):
+        raise HTTPException(status_code=403, detail="admin endpoint disabled")
+    if request.headers.get("x-admin-token") != str(expected):
+        raise HTTPException(status_code=403, detail="forbidden")
     import asyncio as _a
     from services.interlace_kyc import complete_after_kyc_passed, _client
     try:

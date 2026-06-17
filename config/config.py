@@ -118,6 +118,9 @@ SCOPES = GOOGLE_SHEETS_CONFIG.get(
 )
 API_PORT = API_CONFIG.get('port', 3001)
 ALLOWED_ORIGINS = API_CONFIG.get('allowed_origins', '*')
+# Token admin pour les endpoints sensibles (ex: finalize_kyc). Si vide/placeholder
+# -> endpoint refusé (prod-safe). En sandbox : régler api.admin_token dans params.
+ADMIN_API_TOKEN = API_CONFIG.get('admin_token')
 MINIAPP_URL = API_CONFIG.get(
     'miniapp_url',
     'http://localhost:3001'
