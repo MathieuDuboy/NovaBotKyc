@@ -384,10 +384,14 @@ async def language_selection(update: Update, context: ContextTypes.DEFAULT_TYPE)
         welcome_message = get_string("welcome", language, default="Welcome!")
         await send_telegram_message(context.bot, chat_id, welcome_message)
 
-        # Send referral code request
+        # Send referral code request (non bloquant : "NONE" si pas de code)
         referral_message = get_string(
             "askReferralCode", language, default="Referral code:")
-        await send_telegram_message(context.bot, chat_id, referral_message)
+        hint = {"fr": "\n\nSi tu n'as pas de code de parrainage, écris « NONE ».",
+                "ru": "\n\nЕсли у вас нет реферального кода, напишите «NONE»."}.get(
+            (language or "en")[:2].lower(),
+            "\n\nIf you don't have a referral code, write «NONE».")
+        await send_telegram_message(context.bot, chat_id, referral_message + hint)
 
         logger.info(f"Successfully processed language selection for chat_id: {chat_id}")
 
@@ -601,53 +605,42 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         if current_step == "referral":
-            if is_valid_referral(text):
-                # Validate referral code in MySQL using the service function
-                valid, deposit_fee, foreign_fee = await mysql_client.check_referral_code_valid_mysql(text)
+            # Étape NON bloquante : "NONE" (ou vide/équivalent) -> on passe sans code
+            # (frais par défaut). Sinon on valide le code ; un code erroné est rejeté
+            # mais l'user peut toujours écrire NONE pour continuer.
+            _txt = str(text or "").strip()
+            _no_code = _txt.lower() in (
+                "none", "non", "no", "aucun", "skip", "-", "n/a", "na", "нет", "")
+            proceed, ref_to_save = False, ""
+            if _no_code:
+                proceed, ref_to_save = True, ""
+            elif is_valid_referral(_txt):
+                valid, _df, _ff = await mysql_client.check_referral_code_valid_mysql(_txt)
                 if valid:
-                    # Parcours RACCOURCI : on ne demande plus nom/email/tél dans
-                    # le chat. La collecte (infos + pièce d'identité + selfie) se
-                    # fait dans la mini app (vérif KYC Interlace). On garde juste
-                    # le code de parrainage, puis on ouvre le formulaire web_app.
-                    await update_user_state_with_retry(
-                        chat_id, {"referralCode": text, "step": "kyc_form"}
-                    )
-                    await send_telegram_message(
-                        context.bot,
-                        chat_id,
-                        get_string(
-                            "thankYouReferralCode",
-                            language,
-                            default="Referral code saved!")
-                    )
-                    kyc_url = f"{config.MINIAPP_URL.rstrip(chr(47))}/kyc?uid={chat_id}&lang={language}"
-                    intro, btn = kyc_form_texts(language)
-                    await context.bot.send_message(
-                        chat_id=chat_id,
-                        text=intro,
-                        reply_markup=InlineKeyboardMarkup([[
-                            InlineKeyboardButton(btn, web_app=WebAppInfo(url=kyc_url))
-                        ]]),
-                    )
-                else:
-                    await send_telegram_message(
-                        context.bot,
-                        chat_id,
-                        get_string(
-                            "invalidReferralCode",
-                            language,
-                            default="This referral code is not valid. Please enter a valid code:")
-                    )
-                    await update_user_state_with_retry(chat_id, {"step": "referral"})
+                    proceed, ref_to_save = True, _txt
+            if proceed:
+                # Parcours RACCOURCI : la collecte (infos + pièce + selfie) se fait
+                # dans la mini app. On garde juste le code (ou vide), puis on ouvre
+                # le formulaire web_app.
+                await update_user_state_with_retry(
+                    chat_id, {"referralCode": ref_to_save, "step": "kyc_form"})
+                _key = "thankYouReferralCode" if ref_to_save else "noReferralCode"
+                _def = "Referral code saved!" if ref_to_save else "No referral code — standard fees apply."
+                await send_telegram_message(
+                    context.bot, chat_id, get_string(_key, language, default=_def))
+                kyc_url = f"{config.MINIAPP_URL.rstrip(chr(47))}/kyc?uid={chat_id}&lang={language}"
+                intro, btn = kyc_form_texts(language)
+                await context.bot.send_message(
+                    chat_id=chat_id, text=intro,
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton(btn, web_app=WebAppInfo(url=kyc_url))]]),
+                )
             else:
                 await send_telegram_message(
-                    context.bot,
-                    chat_id,
-                    get_string(
-                        "invalidReferralCode",
-                        language,
-                        default="Invalid referral code format. Please enter a valid code:")
-                )
+                    context.bot, chat_id,
+                    get_string("invalidReferralCode", language,
+                               default="This referral code is not valid. Enter a valid code, "
+                                       "or write «NONE» if you don't have one:"))
                 await update_user_state_with_retry(chat_id, {"step": "referral"})
         elif current_step == "kyc_form":
             # L'user doit utiliser le bouton (mini app), pas taper du texte.
