@@ -1706,14 +1706,18 @@ async def handoff(token: str):
         raise HTTPException(status_code=404, detail="token inconnu")
     r = rows[0]
     lang = "en"
+    profile = {}
     try:
-        lang = json.loads(r.get("profile_json") or "{}").get("lang") or "en"
+        profile = json.loads(r.get("profile_json") or "{}")
+        lang = profile.get("lang") or "en"
     except Exception:
         pass
     return {"user_id": r.get("USER_ID"),
             "account_id": r.get("account_id"), "cardholder_id": r.get("cardholder_id"),
             "card_id": r.get("card_id"), "card_number": r.get("card_number"),
-            "bin": r.get("bin"), "kyc_status": r.get("kyc_status"), "lang": lang}
+            "bin": r.get("bin"), "kyc_status": r.get("kyc_status"), "lang": lang,
+            # profil KYC -> permet à Bot B de créer un cardholder d'un AUTRE réseau
+            "profile": profile}
 
 
 @app.get("/api/kyc_status")
