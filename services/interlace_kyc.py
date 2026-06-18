@@ -238,7 +238,9 @@ async def submit_enrollment_kyc(
             if "@" in email:
                 _local, _dom = email.rsplit("@", 1)
                 email = f"{_local.split('+')[0]}+nova{_t.hex[:8]}@{_dom}"
-            profile["phoneNumber"] = str(_t.int)[:11]
+            # numéro US valide (indicatif 1 + 10 chiffres, commence par 2..9), unique
+            profile["phoneCountryCode"] = "1"
+            profile["phoneNumber"] = str(2000000000 + _t.int % 1000000000)
         name = (f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip()
                 or f"user{user_id}")
         # 2.1 — sous-compte sous le compte maître
