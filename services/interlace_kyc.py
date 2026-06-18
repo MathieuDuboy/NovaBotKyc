@@ -265,6 +265,8 @@ async def submit_enrollment_kyc(
         elif str(profile.get("idType") or "") != "PASSPORT":
             # DLN / carte d'identité : verso requis -> à défaut on réutilise le recto
             kyc["idBackId"] = fids[0]
+        # DEBUG : payload KYC complet envoyé à Interlace (à retirer après debug)
+        logger.info(f"[interlace-kyc] PAYLOAD KYC -> {json.dumps(kyc, ensure_ascii=False)}")
         res = c.submit_account_kyc(sub_id, kyc)
         return {"account_id": sub_id,
                 "case_id": (res.get("caseId") if isinstance(res, dict) else None),
