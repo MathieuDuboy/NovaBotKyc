@@ -135,11 +135,7 @@
       <section class="panel" data-tk="s_id">
         <div class="row">
           <div class="field grow2"><label data-i18n="l_idtype"></label>
-            <select name="idType" data-req>
-              <option value="PASSPORT" data-i18n="t_passport"></option>
-              <option value="Government-Issued ID Card" data-i18n="t_idcard"></option>
-              <option value="DLN" data-i18n="t_dln"></option>
-            </select></div>
+            <select name="idType" data-req></select></div>
           <div class="field grow2"><label data-i18n="l_idnum"></label><input name="nationalId" data-req placeholder="123456789"><div class="err-msg" data-i18n="e_req"></div></div>
         </div>
         <div class="row">
@@ -182,7 +178,7 @@ const I18N={
     l_first:"First name",l_last:"Last name",l_dob:"Date of birth",l_gender:"Gender",g_m:"Male",g_f:"Female",l_nat:"Nationality",
     l_email:"Email",l_phone:"Phone",l_addr:"Address",l_city:"City",l_state:"State/Region",l_postal:"Postal code",l_country:"Country",sel_country:"Select a country…",
     l_idtype:"Type",l_idnum:"Document no.",l_issue:"Issued on",l_expiry:"Expires on",l_idfront:"ID photo — front",l_idback:"ID photo — back (if card/licence)",
-    t_passport:"Passport",t_idcard:"ID card",t_dln:"Driver's licence",
+    t_passport:"Passport",t_idcard:"ID card",t_dln:"Driver's licence",t_cnric:"National ID (China)",t_hkid:"HKID (Hong Kong)",t_uae:"UAE Residency Permit",
     h_name:"First + last name ≤ 23 chars, Latin letters (A–Z).",h_phone:"Dialing code without “+” (e.g. 33), then number without it.",
     h_addr:"⚠️ Country must match the card program. State/Region is required — a region name (e.g. Gironde) or a US 2-letter code (NY). Letters, numbers, spaces only.",h_selfie:"Take a clear selfie, face fully visible, no mask/glasses if possible. No edited photo.",
     h_review:"Check your information before sending.",ph_line2:"Apt, suite (optional)",
@@ -201,7 +197,7 @@ const I18N={
     l_first:"Prénom",l_last:"Nom",l_dob:"Date de naissance",l_gender:"Genre",g_m:"Homme",g_f:"Femme",l_nat:"Nationalité",
     l_email:"Email",l_phone:"Téléphone",l_addr:"Adresse",l_city:"Ville",l_state:"État/Région",l_postal:"Code postal",l_country:"Pays",sel_country:"Choisir un pays…",
     l_idtype:"Type",l_idnum:"N° du document",l_issue:"Émis le",l_expiry:"Expire le",l_idfront:"Photo de la pièce — recto",l_idback:"Photo de la pièce — verso (si carte/permis)",
-    t_passport:"Passeport",t_idcard:"Carte d'identité",t_dln:"Permis de conduire",
+    t_passport:"Passeport",t_idcard:"Carte d'identité",t_dln:"Permis de conduire",t_cnric:"Carte d'identité (Chine)",t_hkid:"HKID (Hong Kong)",t_uae:"Titre de séjour (EAU)",
     h_name:"Prénom + nom ≤ 23 caractères, lettres latines (A–Z).",h_phone:"Indicatif sans « + » (ex. 33), puis le numéro sans l'indicatif.",
     h_addr:"⚠️ Le pays doit correspondre au programme. État/Région obligatoire — un nom de région (ex. Gironde) ou un code US à 2 lettres (NY). Lettres, chiffres, espaces uniquement.",h_selfie:"Selfie net, visage bien visible, sans masque ni lunettes si possible. Pas de photo retouchée.",
     h_review:"Vérifie tes informations avant l'envoi.",ph_line2:"Apt, suite (optionnel)",
@@ -220,7 +216,7 @@ const I18N={
     l_first:"Имя",l_last:"Фамилия",l_dob:"Дата рождения",l_gender:"Пол",g_m:"Мужской",g_f:"Женский",l_nat:"Гражданство",
     l_email:"Эл. почта",l_phone:"Телефон",l_addr:"Адрес",l_city:"Город",l_state:"Штат/Регион",l_postal:"Индекс",l_country:"Страна",sel_country:"Выберите страну…",
     l_idtype:"Тип",l_idnum:"№ документа",l_issue:"Выдан",l_expiry:"Действует до",l_idfront:"Фото документа — лицевая",l_idback:"Фото документа — оборот (если карта/права)",
-    t_passport:"Паспорт",t_idcard:"Удостоверение",t_dln:"Водительские права",
+    t_passport:"Паспорт",t_idcard:"Удостоверение",t_dln:"Водительские права",t_cnric:"Удостоверение (Китай)",t_hkid:"HKID (Гонконг)",t_uae:"ВНЖ (ОАЭ)",
     h_name:"Имя + фамилия ≤ 23 символов, латиница (A–Z).",h_phone:"Код страны без «+» (напр. 7), затем номер без кода.",
     h_addr:"⚠️ Страна должна соответствовать программе. Штат/Регион обязателен — название региона (напр. Gironde) или код США из 2 букв (NY). Только буквы, цифры, пробелы.",h_selfie:"Чёткое селфи, лицо полностью видно, без маски/очков по возможности. Без обработки.",
     h_review:"Проверьте данные перед отправкой.",ph_line2:"Кв., офис (необязательно)",
@@ -279,13 +275,36 @@ function bindDrop(id){const inp=document.getElementById(id),zone=document.getEle
     (document.getElementById(id+'Err')||{classList:{remove(){}}}).classList.remove('show');};}
 ['idFront','idBack','selfie'].forEach(bindDrop);
 
-// Passeport = une seule face -> on masque le verso (et on le ré-affiche pour CNI/permis)
+// idType DYNAMIQUE selon la nationalité (cohérence exigée par Interlace).
 const idTypeSel=document.querySelector('select[name=idType]');
+const natSel=document.querySelector('select[name=nationality]');
+function idTypeOptions(nat){
+  nat=(nat||'').toUpperCase();
+  const list=[['PASSPORT','t_passport']];        // passeport : toujours dispo
+  if(nat==='CN') list.push(['CN-RIC','t_cnric']);
+  else if(nat==='HK') list.push(['HK-HKID','t_hkid']);
+  else {
+    list.push(['Government-Issued ID Card','t_idcard']);
+    list.push(['DLN','t_dln']);
+    if(nat==='AE') list.push(['UAE Residency Permit','t_uae']);
+  }
+  return list;
+}
+function refreshIdTypes(){
+  const prev=idTypeSel.value;
+  idTypeSel.innerHTML=idTypeOptions(natSel&&natSel.value).map(
+    ([v,k])=>`<option value="${v}">${t(k)}</option>`).join('');
+  if([...idTypeSel.options].some(o=>o.value===prev)) idTypeSel.value=prev;
+  toggleBack();
+}
+// Passeport = une seule face -> on masque le verso (réaffiché pour CNI/permis/etc.)
 function toggleBack(){ const isPass=idTypeSel.value==='PASSPORT';
   document.getElementById('idBackWrap').style.display=isPass?'none':'block';
   if(isPass){ const ib=document.getElementById('idBack'); ib.value='';
     document.getElementById('d_idBack').classList.remove('filled'); } }
-idTypeSel.addEventListener('change',toggleBack); toggleBack();
+idTypeSel.addEventListener('change',toggleBack);
+if(natSel) natSel.addEventListener('change',refreshIdTypes);
+refreshIdTypes();
 
 function render(){
   track.style.transform=`translateX(-${step*100}%)`;
