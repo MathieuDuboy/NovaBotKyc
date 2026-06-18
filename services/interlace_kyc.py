@@ -469,12 +469,27 @@ async def poll_and_finalize(user_id: int, account_id: str,
 
 
 async def handle_kyc_rejected(account_id: str, reason: Optional[str] = None) -> Optional[int]:
-    """KYC refusé -> statut REJECTED + notifie. Routé par account_id."""
-    user_id = await mysql_client.get_user_id_by_account_id(account_id)
-    if user_id:
-        await mysql_client.set_kyc_status(account_id, KYC_REJECTED)
-        lang = await _user_lang(user_id)
-        await _notify(user_id, _msg("rejected", lang,
-                                    reason=(f" ({reason})" if reason else "")))
-    logger.info(f"[interlace-kyc] KYC refusé account={account_id} user={user_id} raison={reason}")
-    return user_id
+    """KYC refusé -> statut REJECTED + notifie. account_id-centric : marche pour le
+    flux user normal (USER_ID) ET les enrollments admin (created_by)."""
+    acc = await mysql_client.get_account_by_account_id(account_id)
+    if not acc:
+        logger.warning(f"[interlace-kyc] refus: account {account_id} inconnu en base")
+        return None
+    # statut REJECTED systématiquement (par account_id)
+    await mysql_client.update_account_by_account_id(account_id, kyc_status=KYC_REJECTED)
+    user_id = acc.get("USER_ID")
+    target = user_id or acc.get("created_by")
+    rsuffix = f" ({reason})" if reason else ""
+    if target:
+        if user_id:                       # user normal -> message localisé
+            lang = await _user_lang(user_id)
+            await _notify(user_id, _msg("rejected", lang, reason=rsuffix))
+        else:                             # enrollment admin -> on prévient l'admin
+            try:
+                prof = json.loads(acc.get("profile_json") or "{}")
+            except Exception:
+                prof = {}
+            who = prof.get("email") or account_id
+            await _notify(target, f"❌ KYC refusé pour {who}{rsuffix}")
+    logger.info(f"[interlace-kyc] KYC refusé account={account_id} target={target} raison={reason}")
+    return target
