@@ -1648,7 +1648,10 @@ async def _dispatch_kyc_webhook_v3(business_type, data, status_top, event_id):
         if not is_kyc:
             logger.info(f"[interlace-webhook] businessType non-KYC ignoré: {bt}")
             return
-        if status in ("PASSED", "APPROVED", "SUCCESS", "ACTIVE", "NORMAL"):
+        if status in ("PASSED", "APPROVED"):
+            # statut strict PASSED/APPROVED uniquement (évite de créer la carte sur
+            # un statut intermédiaire -> "No KYC information"). Le poll get_cdd_detail
+            # reste le filet pour les autres formulations de statut.
             logger.info(f"[gateway-webhook] KYC OK ({bt}/{status}) account={account_id} -> création carte")
             await complete_after_kyc_passed(account_id, case_id=data.get("caseId") or kyc.get("caseId"))
         elif status in ("REJECTED", "FAILED", "DECLINED", "CANCELED", "CANCELLED"):
