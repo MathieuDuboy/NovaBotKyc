@@ -5,7 +5,10 @@ Commandes admin (Telegram) — pilotage des enrollments multi-KYC :
   /available    — cartes créées NON réclamées (+ liens à transmettre)
 Réservées aux ADMIN_CHAT_IDS (filtre appliqué à l'enregistrement).
 """
+import csv
+import io
 import json
+from datetime import datetime, timezone
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -26,23 +29,35 @@ def _email_name(r):
 
 
 async def cmd_enrollments(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Génère et envoie un CSV téléchargeable de TOUS les enrollments."""
     try:
+        from services.interlace_kyc import BOT_B_USERNAME
         rows = await mysql_client.list_all_enrollments()
         if not rows:
             await update.message.reply_text("Aucun enrollment pour l'instant.")
             return
-        lines = [f"📋 Enrollments ({len(rows)})"]
-        for r in rows[:_MAX]:
-            email, _ = _email_name(r)
-            st = r.get("kyc_status") or "—"
-            state = ("🟢 réclamé" if r.get("USER_ID")
-                     else ("💳 carte prête" if r.get("card_id") else "⏳ en cours"))
-            lines.append(f"• {email} — {st} — {state}")
-        if len(rows) > _MAX:
-            lines.append(f"… +{len(rows) - _MAX} autres")
-        await update.message.reply_text("\n".join(lines))
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(["created_at", "email", "name", "kyc_status", "card_created",
+                    "card_id", "account_id", "created_by_admin", "claimed_by_user", "link"])
+        for r in rows:
+            email, name = _email_name(r)
+            tok = r.get("handoff_token")
+            link = f"https://t.me/{BOT_B_USERNAME}?start={tok}" if tok else ""
+            w.writerow([
+                str(r.get("created_at") or ""), email, name,
+                r.get("kyc_status") or "", "yes" if r.get("card_id") else "no",
+                r.get("card_id") or "", r.get("account_id") or "",
+                r.get("created_by") or "", r.get("USER_ID") or "", link,
+            ])
+        # utf-8-sig (BOM) -> accents corrects à l'ouverture dans Excel
+        bio = io.BytesIO(buf.getvalue().encode("utf-8-sig"))
+        bio.name = f"enrollments_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.csv"
+        await update.message.reply_document(
+            document=bio, filename=bio.name,
+            caption=f"📋 {len(rows)} enrollment(s) — statut · email · attribution · lien")
     except Exception as e:
-        logger.error(f"[admin] /enrollments: {e}")
+        logger.error(f"[admin] /enrollments csv: {e}")
         await update.message.reply_text(f"Erreur : {e}")
 
 
