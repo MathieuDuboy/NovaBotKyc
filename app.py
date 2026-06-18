@@ -1637,30 +1637,36 @@ async def _dispatch_kyc_webhook_v3(business_type, data, status_top, event_id):
     data = data if isinstance(data, dict) else {}
     kyc = data.get("kyc") if isinstance(data.get("kyc"), dict) else {}
     account_id = (data.get("accountId") or kyc.get("accountId") or data.get("id"))
-    status = str(data.get("status") or status_top or kyc.get("status") or "").upper()
     bt = str(business_type or "")
+    # Le résultat KYC est dans `kycStatus` (≠ `status` qui = statut du COMPTE, ex ACTIVE).
+    status = str(data.get("kycStatus") or data.get("status") or status_top
+                 or kyc.get("status") or "").upper()
     # Seuls les VRAIS événements de résultat KYC déclenchent la carte. PAS
     # AccountRegistered (= sous-compte créé) ni FaceAuthentication (= étape).
     is_kyc = ("KYC" in bt.upper() or "CDD" in bt.upper() or bt in ("CardHolder", "Cardholder"))
     try:
         from services.interlace_kyc import (complete_after_kyc_passed,
-                                            handle_kyc_rejected)
+                                            handle_kyc_rejected, _client)
         if not is_kyc:
             logger.info(f"[interlace-webhook] businessType non-KYC ignoré: {bt}")
             return
-        if status in ("PASSED", "APPROVED"):
-            # statut strict PASSED/APPROVED uniquement (évite de créer la carte sur
-            # un statut intermédiaire -> "No KYC information"). Le poll get_cdd_detail
-            # reste le filet pour les autres formulations de statut.
-            logger.info(f"[gateway-webhook] KYC OK ({bt}/{status}) account={account_id} -> création carte")
+        # Statut KYC AUTORITAIRE : on confirme via get_cdd_detail (évite d'agir sur
+        # un statut intermédiaire / d'utiliser le statut compte 'ACTIVE').
+        real = status
+        try:
+            import asyncio as _a
+            cdd = await _a.to_thread(_client().get_cdd_detail, account_id)
+            real = str(((cdd or {}).get("kyc") or {}).get("status") or status or "").upper()
+        except Exception as e:
+            logger.warning(f"[gateway-webhook] get_cdd_detail({account_id}) échec: {e}")
+        logger.info(f"[gateway-webhook] KYC account={account_id} event={status} live={real}")
+        if real in ("PASSED", "APPROVED", "ACTIVE"):
             await complete_after_kyc_passed(account_id, case_id=data.get("caseId") or kyc.get("caseId"))
-        elif status in ("REJECTED", "FAILED", "DECLINED", "CANCELED", "CANCELLED"):
-            # Le KYC sandbox réagit désormais comme la prod (docs Interlace) -> on
-            # traite le refus réellement (notif user), plus de masque.
-            logger.info(f"[gateway-webhook] KYC refusé ({bt}/{status}) account={account_id}")
-            await handle_kyc_rejected(account_id, reason=data.get("reason") or data.get("rejectReason"))
+        elif real in ("REJECTED", "FAILED", "DECLINED", "CANCELED", "CANCELLED"):
+            await handle_kyc_rejected(account_id, reason=(data.get("message") or data.get("reason")
+                                                          or data.get("rejectReason")))
         else:
-            logger.info(f"[gateway-webhook] {bt} statut={status} account={account_id} (pas d'action)")
+            logger.info(f"[gateway-webhook] KYC encore en revue (live={real}) account={account_id}")
     except Exception as e:
         logger.error(f"[gateway-webhook] dispatch KYC échec: {e}")
 
