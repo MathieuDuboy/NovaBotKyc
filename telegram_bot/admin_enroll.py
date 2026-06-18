@@ -62,6 +62,7 @@ async def cmd_enrollments(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """CSV des KYC en attente (+ account_id à valider chez Interlace)."""
     try:
         rows = await mysql_client.execute_query_async(
             "SELECT * FROM interlace_accounts "
@@ -70,14 +71,20 @@ async def cmd_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not rows:
             await update.message.reply_text("✅ Aucun KYC en attente.")
             return
-        lines = [f"⏳ KYC en attente ({len(rows)})",
-                 "account_id à faire valider chez Interlace :"]
-        for r in rows[:_MAX]:
-            email, _ = _email_name(r)
-            lines.append(f"\n• {email}\n  {r.get('account_id') or '—'}")
-        if len(rows) > _MAX:
-            lines.append(f"\n… +{len(rows) - _MAX} autres")
-        await update.message.reply_text("\n".join(lines))
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(["created_at", "email", "name", "kyc_status", "account_id",
+                    "created_by_admin", "claimed_by_user"])
+        for r in rows:
+            email, name = _email_name(r)
+            w.writerow([str(r.get("created_at") or ""), email, name,
+                        r.get("kyc_status") or "", r.get("account_id") or "",
+                        r.get("created_by") or "", r.get("USER_ID") or ""])
+        bio = io.BytesIO(buf.getvalue().encode("utf-8-sig"))
+        bio.name = f"kyc_pending_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.csv"
+        await update.message.reply_document(
+            document=bio, filename=bio.name,
+            caption=f"⏳ {len(rows)} KYC en attente — account_id à valider chez Interlace")
     except Exception as e:
         logger.error(f"[admin] /pending: {e}")
         await update.message.reply_text(f"Erreur : {e}")

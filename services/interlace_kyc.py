@@ -443,11 +443,10 @@ async def complete_after_kyc_passed(account_id: str, case_id: Optional[str] = No
             prof = json.loads(acc.get("profile_json") or "{}")
         except Exception:
             prof = {}
-        # Message du lien IDENTIQUE pour admin et client : "ready" localisé (langue
-        # choisie, défaut anglais). notify_target = client (USER_ID) ou admin (created_by).
-        lang = (prof.get("lang") or "en")
+        # Message de mise à dispo du lien (vers Bot B) : TOUJOURS en anglais,
+        # identique pour admin et client. notify_target = client (USER_ID) ou admin.
         if notify_target:
-            await _notify(notify_target, _msg("ready", lang,
+            await _notify(notify_target, _msg("ready", "en",
                                               extra=(f" (•••• {last4})" if last4 else ""), link=link))
         logger.info(f"[interlace-kyc] enrollment account={account_id} carte prête "
                     f"card_id={r['card_id']} owner={user_id} admin={acc.get('created_by')} token={token}")
