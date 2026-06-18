@@ -70,7 +70,9 @@ KYC_REJECTED = "REJECTED"
 
 
 def _client() -> InterlaceV3:
-    return InterlaceV3.from_params("config/params.json", mode=config.INTERLACE_MODE)
+    # Instance PARTAGÉE (un seul token OAuth, rafraîchi en place) -> évite la
+    # cascade de ré-auth/invalidations entre appels concurrents (poll + webhook…).
+    return InterlaceV3.shared("config/params.json", mode=config.INTERLACE_MODE)
 
 
 async def _notify(user_id, message: str) -> None:

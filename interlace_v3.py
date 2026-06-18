@@ -47,6 +47,19 @@ class InterlaceV3:
         il = p["interlace"][mode]
         return cls(il["base_url"], il["client_id"], il["client_secret"], il.get("account_id"))
 
+    _SHARED: Dict[str, "InterlaceV3"] = {}
+
+    @classmethod
+    def shared(cls, params_path: str = "config/params.json", mode: str = "dev") -> "InterlaceV3":
+        """Instance PARTAGÉE par process (un seul token OAuth, rafraîchi en place)
+        -> évite la multiplication des authentifications et l'invalidation croisée."""
+        key = f"{params_path}:{mode}"
+        inst = cls._SHARED.get(key)
+        if inst is None:
+            inst = cls.from_params(params_path, mode)
+            cls._SHARED[key] = inst
+        return inst
+
     # ── auth OAuth2 (authorize -> access-token) ───────────────────────────────
     def _authenticate(self) -> None:
         r = requests.get(f"{self.base}/open-api/oauth/authorize",
@@ -81,7 +94,8 @@ class InterlaceV3:
 
     # ── couche requête signée ─────────────────────────────────────────────────
     def _request(self, method: str, path: str, *, params: Optional[dict] = None,
-                 json_body: Optional[dict] = None, files=None, data=None) -> Any:
+                 json_body: Optional[dict] = None, files=None, data=None,
+                 _retried: bool = False) -> Any:
         headers = {"x-access-token": self._ensure_token()}
         url = f"{self.base}{path}"
         r = requests.request(method, url, headers=headers, params=params, json=json_body,
@@ -89,9 +103,19 @@ class InterlaceV3:
         try:
             j = r.json()
         except Exception:
+            if r.status_code == 401 and not _retried:
+                self._token = None
+                return self._request(method, path, params=params, json_body=json_body,
+                                     files=files, data=data, _retried=True)
             if not r.ok:
                 raise InterlaceV3Error(f"{method} {path}: HTTP {r.status_code}: {r.text[:200]}", http=r.status_code)
             return r.text
+        # token expiré/invalide (401003) ou HTTP 401 -> ré-auth + 1 retry
+        _code = str(j.get("code")) if isinstance(j, dict) else ""
+        if not _retried and (_code == "401003" or r.status_code == 401):
+            self._token = None
+            return self._request(method, path, params=params, json_body=json_body,
+                                 files=files, data=data, _retried=True)
         # enveloppe {code, message, data}
         if isinstance(j, dict) and "code" in j and j.get("code") not in (None, "000000", 0, "0"):
             raise InterlaceV3Error(f"{method} {path}: {j.get('message')} (code {j.get('code')})",
