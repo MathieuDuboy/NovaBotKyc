@@ -443,16 +443,10 @@ async def complete_after_kyc_passed(account_id: str, case_id: Optional[str] = No
             prof = json.loads(acc.get("profile_json") or "{}")
         except Exception:
             prof = {}
+        # Message du lien IDENTIQUE pour admin et client : "ready" localisé (langue
+        # choisie, défaut anglais). notify_target = client (USER_ID) ou admin (created_by).
         lang = (prof.get("lang") or "en")
-        if is_admin_enroll:
-            # enrollment admin : on envoie le lien à l'admin, identifié par email/nom
-            who = prof.get("email") or f"{prof.get('firstName','')} {prof.get('lastName','')}".strip() or account_id
-            if notify_target:
-                await _notify(notify_target,
-                              f"✅ Carte prête pour {who}"
-                              + (f" (•••• {last4})" if last4 else "")
-                              + f"\nLien à transmettre :\n{link}")
-        else:
+        if notify_target:
             await _notify(notify_target, _msg("ready", lang,
                                               extra=(f" (•••• {last4})" if last4 else ""), link=link))
         logger.info(f"[interlace-kyc] enrollment account={account_id} carte prête "
