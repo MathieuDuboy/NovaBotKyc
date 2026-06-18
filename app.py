@@ -1651,10 +1651,10 @@ async def _dispatch_kyc_webhook_v3(business_type, data, status_top, event_id):
             logger.info(f"[gateway-webhook] KYC OK ({bt}/{status}) account={account_id} -> création carte")
             await complete_after_kyc_passed(account_id, case_id=data.get("caseId") or kyc.get("caseId"))
         elif status in ("REJECTED", "FAILED", "DECLINED", "CANCELED", "CANCELLED"):
-            if getattr(config, "TESTING_MODE", False):
-                logger.info(f"[gateway-webhook] {status} account={account_id} -> SANDBOX, refus masqué")
-            else:
-                await handle_kyc_rejected(account_id, reason=data.get("reason") or data.get("rejectReason"))
+            # Le KYC sandbox réagit désormais comme la prod (docs Interlace) -> on
+            # traite le refus réellement (notif user), plus de masque.
+            logger.info(f"[gateway-webhook] KYC refusé ({bt}/{status}) account={account_id}")
+            await handle_kyc_rejected(account_id, reason=data.get("reason") or data.get("rejectReason"))
         else:
             logger.info(f"[gateway-webhook] {bt} statut={status} account={account_id} (pas d'action)")
     except Exception as e:

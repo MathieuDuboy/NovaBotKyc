@@ -461,13 +461,7 @@ async def poll_and_finalize(user_id: int, account_id: str,
             await complete_after_kyc_passed(account_id)
             return
         if st in ("CANCELED", "CANCELLED", "REJECTED", "FAILED", "DECLINED"):
-            # SANDBOX : l'auto-review refuse toujours (factice). On MASQUE le refus
-            # et on garde le statut PENDING (« vérification en cours ») jusqu'à la
-            # validation manuelle d'Interlace -> webhook PASSED -> carte.
-            if getattr(config, "TESTING_MODE", False):
-                logger.info(f"[interlace-kyc] poll: {account_id} {st} -> SANDBOX, "
-                            f"refus auto masqué (attente validation manuelle Interlace)")
-                return
+            # KYC sandbox = comme la prod désormais -> on traite le refus réellement.
             logger.info(f"[interlace-kyc] poll: {account_id} {st} -> refus")
             await handle_kyc_rejected(account_id, reason=(k or {}).get("reason"))
             return
