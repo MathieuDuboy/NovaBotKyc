@@ -247,9 +247,10 @@ async def submit_enrollment_kyc(
             if "@" in email:
                 _local, _dom = email.rsplit("@", 1)
                 email = f"{_local.split('+')[0]}+nova{_t.hex[:8]}@{_dom}"
-            # numéro US valide (indicatif 1 + 10 chiffres, commence par 2..9), unique
+            # numéro US au FORMAT valide (NANP) : indicatif régional 212, exchange
+            # 555 (réservé aux tests), + 4 chiffres uniques. Évite les exchanges 0/1.
             profile["phoneCountryCode"] = "1"
-            profile["phoneNumber"] = str(2000000000 + _t.int % 1000000000)
+            profile["phoneNumber"] = "212555" + f"{_t.int % 10000:04d}"
         name = (f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip()
                 or f"user{user_id}")
         # 2.1 — sous-compte sous le compte maître
