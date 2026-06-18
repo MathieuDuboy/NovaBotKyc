@@ -169,6 +169,7 @@ def _norm_account_kyc(p: Dict[str, Any]) -> Dict[str, Any]:
         "gender": _norm_gender(p.get("gender")),
         "nationality": (p.get("nationality") or "").upper(),
         "nationalId": p["nationalId"], "idType": p["idType"],
+        "sourceType": "api",                      # requis par Interlace (CDD)
         "issueDate": p.get("issueDate"), "expiryDate": p.get("expiryDate"),
         "phoneNumber": p["phoneNumber"], "phoneCountryCode": p["phoneCountryCode"],
         "address": {
@@ -235,6 +236,9 @@ async def submit_enrollment_kyc(
             _local, _dom = email.rsplit("@", 1)
             _base = _local.split("+")[0]
             email = f"{_base}+nova{user_id}@{_dom}"
+        # SANDBOX : téléphone unique par chat_id (évite "phone number already exists")
+        if getattr(config, "INTERLACE_MODE", "dev") == "dev" and not admin_mode:
+            profile["phoneNumber"] = str(user_id)[-11:]
         name = (f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip()
                 or f"user{user_id}")
         # 2.1 — sous-compte sous le compte maître
@@ -256,6 +260,9 @@ async def submit_enrollment_kyc(
         kyc["selfie"] = fids[1]
         if id_back and len(fids) > 2:
             kyc["idBackId"] = fids[2]
+        elif str(profile.get("idType") or "") != "PASSPORT":
+            # DLN / carte d'identité : verso requis -> à défaut on réutilise le recto
+            kyc["idBackId"] = fids[0]
         res = c.submit_account_kyc(sub_id, kyc)
         return {"account_id": sub_id,
                 "case_id": (res.get("caseId") if isinstance(res, dict) else None),

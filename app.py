@@ -1639,8 +1639,9 @@ async def _dispatch_kyc_webhook_v3(business_type, data, status_top, event_id):
     account_id = (data.get("accountId") or kyc.get("accountId") or data.get("id"))
     status = str(data.get("status") or status_top or kyc.get("status") or "").upper()
     bt = str(business_type or "")
-    is_kyc = ("KYC" in bt.upper() or "CARDHOLDER" in bt.upper()
-              or bt in ("AccountRegistered", "FaceAuthentication"))
+    # Seuls les VRAIS événements de résultat KYC déclenchent la carte. PAS
+    # AccountRegistered (= sous-compte créé) ni FaceAuthentication (= étape).
+    is_kyc = ("KYC" in bt.upper() or "CDD" in bt.upper() or bt in ("CardHolder", "Cardholder"))
     try:
         from services.interlace_kyc import (complete_after_kyc_passed,
                                             handle_kyc_rejected)
