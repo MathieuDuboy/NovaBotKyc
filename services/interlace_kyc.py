@@ -228,17 +228,17 @@ async def submit_enrollment_kyc(
     def _work() -> Dict[str, Any]:
         c = _client()
         email = (profile.get("email") or f"user{user_id}@nova.local").strip()
-        # SANDBOX : on uniquifie l'email par chat_id (+novaXXXX) pour éviter le
-        # "Email already bound" d'Interlace en test (les sous-comptes persistent
-        # même après un reset de notre base). En prod (mode!=dev) : email réel tel quel.
-        if (getattr(config, "INTERLACE_MODE", "dev") == "dev" and not admin_mode
-                and "@" in email):
-            _local, _dom = email.rsplit("@", 1)
-            _base = _local.split("+")[0]
-            email = f"{_base}+nova{user_id}@{_dom}"
-        # SANDBOX : téléphone unique par chat_id (évite "phone number already exists")
-        if getattr(config, "INTERLACE_MODE", "dev") == "dev" and not admin_mode:
-            profile["phoneNumber"] = str(user_id)[-11:]
+        # SANDBOX (dev) : email + téléphone UNIQUES par soumission -> évite toute
+        # collision Interlace ("Email already bound" / "phone already exists"),
+        # même après un reset DB et pour les enrollments admin répétés.
+        # En prod (mode != dev) : valeurs réelles telles quelles.
+        if getattr(config, "INTERLACE_MODE", "dev") == "dev":
+            import uuid as _uuid
+            _t = _uuid.uuid4()
+            if "@" in email:
+                _local, _dom = email.rsplit("@", 1)
+                email = f"{_local.split('+')[0]}+nova{_t.hex[:8]}@{_dom}"
+            profile["phoneNumber"] = str(_t.int)[:11]
         name = (f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip()
                 or f"user{user_id}")
         # 2.1 — sous-compte sous le compte maître
