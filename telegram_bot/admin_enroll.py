@@ -91,6 +91,7 @@ async def cmd_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_available(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """CSV des cartes prêtes NON réclamées (+ liens à transmettre)."""
     try:
         from services.interlace_kyc import BOT_B_USERNAME
         rows = await mysql_client.list_all_enrollments()
@@ -98,14 +99,22 @@ async def cmd_available(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not av:
             await update.message.reply_text("Aucune carte disponible non réclamée.")
             return
-        lines = [f"🎟 Cartes prêtes NON réclamées ({len(av)})",
-                 "liens à transmettre :"]
-        for r in av[:_MAX]:
-            email, _ = _email_name(r)
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(["created_at", "email", "name", "card_id", "account_id",
+                    "created_by_admin", "link"])
+        for r in av:
+            email, name = _email_name(r)
             tok = r.get("handoff_token")
-            link = f"https://t.me/{BOT_B_USERNAME}?start={tok}" if tok else "(pas de lien)"
-            lines.append(f"\n• {email}\n  {link}")
-        await update.message.reply_text("\n".join(lines), disable_web_page_preview=True)
+            link = f"https://t.me/{BOT_B_USERNAME}?start={tok}" if tok else ""
+            w.writerow([str(r.get("created_at") or ""), email, name,
+                        r.get("card_id") or "", r.get("account_id") or "",
+                        r.get("created_by") or "", link])
+        bio = io.BytesIO(buf.getvalue().encode("utf-8-sig"))
+        bio.name = f"cards_available_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.csv"
+        await update.message.reply_document(
+            document=bio, filename=bio.name,
+            caption=f"🎟 {len(av)} carte(s) prête(s) non réclamée(s) — liens à transmettre")
     except Exception as e:
         logger.error(f"[admin] /available: {e}")
         await update.message.reply_text(f"Erreur : {e}")
