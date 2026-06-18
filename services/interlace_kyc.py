@@ -163,12 +163,21 @@ def _norm_account_kyc(p: Dict[str, Any]) -> Dict[str, Any]:
     N'inclut PAS les fileId (ajoutés après l'upload). ssn requis si adresse US."""
     a = p.get("address") or {}
     country = (a.get("country") or "").upper()
+    nat = (p.get("nationality") or "").upper()
+    # idType doit être cohérent avec la nationalité côté Interlace : une carte
+    # d'identité « générique » n'est pas acceptée pour CN/HK (codes dédiés).
+    idt = p["idType"]
+    if idt == "Government-Issued ID Card":
+        if nat == "CN":
+            idt = "CN-RIC"
+        elif nat == "HK":
+            idt = "HK-HKID"
     kyc: Dict[str, Any] = {
         "firstName": p["firstName"], "lastName": p["lastName"],
         "dateOfBirth": p.get("dateOfBirth") or p.get("dob"),
         "gender": _norm_gender(p.get("gender")),
-        "nationality": (p.get("nationality") or "").upper(),
-        "nationalId": p["nationalId"], "idType": p["idType"],
+        "nationality": nat,
+        "nationalId": p["nationalId"], "idType": idt,
         "sourceType": "api",                      # requis par Interlace (CDD)
         "issueDate": p.get("issueDate"), "expiryDate": p.get("expiryDate"),
         "phoneNumber": p["phoneNumber"], "phoneCountryCode": p["phoneCountryCode"],
