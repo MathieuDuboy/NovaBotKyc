@@ -378,6 +378,10 @@ async def complete_after_kyc_passed(account_id: str, case_id: Optional[str] = No
             raise RuntimeError("cardholder: pas d'id")
         # 3b — alimente le sous-compte depuis le compte maître (si montant > 0)
         amount = CARD_INITIAL_AMOUNT
+        # create_prepaid_card(amount=$10) exige $10 + FRAIS d'émission disponibles sur
+        # le sous-compte (sinon 100100001 "sub amount is error"). On finance donc une
+        # MARGE ; le surplus non utilisé est renvoyé au maître par le sweep (étape 7b).
+        fund_amount = float(amount) + 10 if amount and float(amount) > 0 else 0
         if amount and float(amount) > 0:
             master_inf = c.get_infinity_wallet(c.account_id)
             sub_inf = None
@@ -394,7 +398,7 @@ async def complete_after_kyc_passed(account_id: str, case_id: Optional[str] = No
                     c.transfer_external(
                         from_account=c.account_id, from_balance_id=master_inf["id"],
                         to_account=account_id, to_balance_id=sub_inf["id"],
-                        amount=amount, client_tx_id=f"nova-fund-{uuid.uuid4().hex[:10]}")
+                        amount=f"{fund_amount:.2f}", client_tx_id=f"nova-fund-{uuid.uuid4().hex[:10]}")
                     last_err = None
                     break
                 except Exception as e:
@@ -408,13 +412,13 @@ async def complete_after_kyc_passed(account_id: str, case_id: Optional[str] = No
             funded = False
             for _ in range(10):
                 sw = c.get_infinity_wallet(account_id)
-                if sw and float(sw.get("available") or 0) >= float(amount):
+                if sw and float(sw.get("available") or 0) >= fund_amount:
                     funded = True
                     break
                 time.sleep(2)
             if not funded:
                 logger.warning(f"[interlace-kyc] {account_id}: sous-compte pas encore "
-                               f"crédité ({amount}) après attente — tentative quand même")
+                               f"crédité ({fund_amount}) après attente — tentative quand même")
         # 6 — carte prépayée rechargeable (virtuelle), chargée de `amount`
         card = c.create_prepaid_card(
             account_id=account_id, bin_id=bin_id, cardholder_id=chid,
