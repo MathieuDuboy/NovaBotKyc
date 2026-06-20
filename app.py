@@ -1795,7 +1795,7 @@ async def handoff(token: str, claimed_by: int = None):
     une fois réclamé par un user, le lien refuse tout autre user."""
     from services.mysql_service import mysql_client as _mc
     rows = await _mc.execute_query_async(
-        "SELECT `USER_ID`,`account_id`,`cardholder_id`,`card_id`,`card_number`,`bin`,`kyc_status`,`profile_json` "
+        "SELECT `USER_ID`,`created_by`,`account_id`,`cardholder_id`,`card_id`,`card_number`,`bin`,`kyc_status`,`profile_json` "
         "FROM interlace_accounts WHERE `handoff_token`=%s LIMIT 1", (token,))
     if not rows:
         raise HTTPException(status_code=404, detail="token inconnu")
@@ -1816,7 +1816,7 @@ async def handoff(token: str, claimed_by: int = None):
         lang = profile.get("lang") or "en"
     except Exception:
         pass
-    return {"user_id": r.get("USER_ID"),
+    return {"user_id": r.get("USER_ID"), "created_by": r.get("created_by"),
             "account_id": r.get("account_id"), "cardholder_id": r.get("cardholder_id"),
             "card_id": r.get("card_id"), "card_number": r.get("card_number"),
             "bin": r.get("bin"), "kyc_status": r.get("kyc_status"), "lang": lang,
@@ -1843,11 +1843,9 @@ async def api_profile(uid: int):
 async def kyc_status(uid: int):
     """Statut KYC d'un user (pour bloquer le formulaire au chargement).
     Les ADMINS ne sont jamais bloqués (ils créent plusieurs KYC)."""
-    if uid in getattr(config, "ADMIN_CHAT_IDS", set()):
-        return {"status": "NONE", "admin": True}
-    from services.mysql_service import mysql_client as _mc
-    acc = await _mc.get_interlace_account(uid)
-    return {"status": (acc.get("kyc_status") if acc else None) or "NONE"}
+    # Modèle enrollment pour tous : le formulaire ne bloque jamais (un user peut
+    # générer plusieurs KYC/liens). On renvoie toujours NONE.
+    return {"status": "NONE"}
 
 
 @app.post("/api/kyc_submit")
@@ -1861,21 +1859,10 @@ async def kyc_submit(request: Request):
         return JSONResponse({"success": False, "message": "uid manquant/invalide"},
                             status_code=400)
 
-    # Mode ADMIN : le compte admin peut créer PLUSIEURS enrollments (1 par client)
-    # -> on saute l'anti-doublon et on enregistre en USER_ID NULL / created_by=admin.
-    from services.mysql_service import mysql_client as _mc
-    is_admin = user_id in getattr(config, "ADMIN_CHAT_IDS", set())
-    if not is_admin:
-        # Anti-doublon : un KYC déjà en cours / validé bloque une nouvelle soumission.
-        existing = await _mc.get_interlace_account(user_id)
-        if existing:
-            _st = str(existing.get("kyc_status") or "").upper()
-            if _st == "PENDING":
-                return JSONResponse({"success": False, "code": "kyc_pending",
-                                     "message": "Verification already in progress."}, status_code=409)
-            if _st in ("PASSED", "ACTIVE"):
-                return JSONResponse({"success": False, "code": "kyc_passed",
-                                     "message": "Verification already approved."}, status_code=409)
+    # Modèle "enrollment" pour TOUS : n'importe quel user peut générer plusieurs
+    # KYC/liens (ex. pour sa famille). Chaque soumission crée un enrollment
+    # (USER_ID NULL, created_by = ce user) qu'on réclame ensuite via le lien sur
+    # Bot B. Pas d'anti-doublon.
 
     profile = {
         "firstName": (form.get("firstName") or "").strip(),
@@ -1922,7 +1909,7 @@ async def kyc_submit(request: Request):
     try:
         from services.interlace_kyc import submit_enrollment_kyc
         result = await submit_enrollment_kyc(user_id, profile, id_front, selfie, id_back,
-                                             admin_mode=is_admin)
+                                             admin_mode=True)
     except Exception as e:
         logger.error(f"[kyc_submit] user={form.get('uid')} échec: {e}")
         return JSONResponse({"success": False, "message": str(e)}, status_code=500)
