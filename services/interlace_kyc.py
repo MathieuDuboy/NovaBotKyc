@@ -326,6 +326,18 @@ async def complete_after_kyc_passed(account_id: str, case_id: Optional[str] = No
         logger.info(f"[interlace-kyc] sous-compte {account_id}: carte déjà créée, skip")
         return {"success": True, "user_id": user_id, "card_id": acc["card_id"], "skipped": True}
 
+    # GARDE-FOU atomique : webhook ET poll de secours peuvent appeler cette fonction
+    # quasi simultanément -> double création de carte (erreur 070010). On "claim" le
+    # compte en passant kyc_status à PROCESSING de façon ATOMIQUE : un seul appel
+    # remporte le claim (rowcount=1) et crée la carte ; l'autre est ignoré.
+    claimed = await mysql_client.execute_query_async(
+        "UPDATE interlace_accounts SET `kyc_status`='PROCESSING', `updated_at`=NOW() "
+        "WHERE `account_id`=%s AND (`card_id` IS NULL OR `card_id`='') "
+        "AND `kyc_status`<>'PROCESSING'", (account_id,), fetch=False)
+    if not claimed:
+        logger.info(f"[interlace-kyc] {account_id}: création déjà en cours/faite, skip (anti-070010)")
+        return {"success": True, "user_id": user_id, "skipped": True}
+
     def _work() -> Dict[str, Any]:
         c = _client()
         profile = json.loads(acc.get("profile_json") or "{}")
@@ -452,6 +464,14 @@ async def complete_after_kyc_passed(account_id: str, case_id: Optional[str] = No
                     f"card_id={r['card_id']} owner={user_id} admin={acc.get('created_by')} token={token}")
         return {"success": True, "user_id": user_id, "link": link, **r}
     except Exception as e:
+        # échec -> on libère le claim (PROCESSING -> PENDING) pour autoriser un retry
+        try:
+            await mysql_client.execute_query_async(
+                "UPDATE interlace_accounts SET `kyc_status`=%s, `updated_at`=NOW() "
+                "WHERE `account_id`=%s AND `kyc_status`='PROCESSING'",
+                (KYC_PENDING, account_id), fetch=False)
+        except Exception:
+            pass
         logger.error(f"[interlace-kyc] complete_after_kyc_passed account={account_id} échec: {e}")
         return {"success": False, "user_id": user_id, "message": str(e)}
 
@@ -491,8 +511,17 @@ async def handle_kyc_rejected(account_id: str, reason: Optional[str] = None) -> 
     if not acc:
         logger.warning(f"[interlace-kyc] refus: account {account_id} inconnu en base")
         return None
-    # statut REJECTED systématiquement (par account_id)
-    await mysql_client.update_account_by_account_id(account_id, kyc_status=KYC_REJECTED)
+    # GARDE-FOU atomique : webhook ET poll de secours peuvent signaler le même refus.
+    # On passe à REJECTED de façon ATOMIQUE -> un seul appel remporte le claim
+    # (rowcount=1) et notifie ; l'autre est ignoré (= une seule notif). On ne rejette
+    # pas un compte déjà PASSED/PROCESSING (carte en cours/faite).
+    claimed = await mysql_client.execute_query_async(
+        "UPDATE interlace_accounts SET `kyc_status`=%s, `updated_at`=NOW() "
+        "WHERE `account_id`=%s AND `kyc_status` NOT IN ('REJECTED','PASSED','PROCESSING') "
+        "AND (`card_id` IS NULL OR `card_id`='')", (KYC_REJECTED, account_id), fetch=False)
+    if not claimed:
+        logger.info(f"[interlace-kyc] refus déjà traité (ou compte déjà validé) pour {account_id}, skip notif")
+        return None
     user_id = acc.get("USER_ID")
     target = user_id or acc.get("created_by")
     rsuffix = f" ({reason})" if reason else ""
