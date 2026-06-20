@@ -1650,6 +1650,9 @@ async def _dispatch_kyc_webhook_v3(business_type, data, status_top, event_id):
         if not is_kyc:
             logger.info(f"[interlace-webhook] businessType non-KYC ignoré: {bt}")
             return
+        # PAYLOAD complet du webhook reçu à la validation du KYC (debug).
+        logger.info(f"[gateway-webhook] PAYLOAD KYC reçu bt={bt} businessStatus={status_top} "
+                    f"data={json.dumps(data, ensure_ascii=False)}")
         # Statut KYC AUTORITAIRE : on confirme via get_cdd_detail (évite d'agir sur
         # un statut intermédiaire / d'utiliser le statut compte 'ACTIVE').
         real = status
@@ -1657,6 +1660,7 @@ async def _dispatch_kyc_webhook_v3(business_type, data, status_top, event_id):
             import asyncio as _a
             cdd = await _a.to_thread(_client().get_cdd_detail, account_id)
             real = str(((cdd or {}).get("kyc") or {}).get("status") or status or "").upper()
+            logger.info(f"[gateway-webhook] CDD detail kyc={json.dumps((cdd or {}).get('kyc') or {}, ensure_ascii=False)}")
         except Exception as e:
             logger.warning(f"[gateway-webhook] get_cdd_detail({account_id}) échec: {e}")
         logger.info(f"[gateway-webhook] KYC account={account_id} event={status} live={real}")
