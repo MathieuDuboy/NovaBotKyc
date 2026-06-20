@@ -64,9 +64,15 @@ https://<domaine-card>/api/callback
 
 ## 5. Sécurité des endpoints
 
-- 🅱️ `api.test_token` : garder un secret fort. **Idéalement, désactiver/retirer les
-  `/api/test/*` en prod** (ils servent au debug). Sans token → déjà 403.
-- 🅰️ `api.admin_token` : secret fort pour `finalize_kyc` (debug uniquement en prod).
+- 🅱️ ⚠️ **DÉSACTIVER complètement les `/api/test/*` en prod** (PRIORITÉ). Ces endpoints
+  (`fund_card`, `simulate_auth`, `simulate_deposit_v3`, `simulate_deposit`, `wallets`,
+  `check_infinity`) **créent/déplacent de la valeur sur n'importe quelle carte** et sont
+  exposés publiquement. Un token fort ne suffit pas : prévoir un **kill-switch** (ne pas
+  enregistrer ces routes si prod / `TESTING_MODE` off). En attendant : token `api.test_token`
+  fort obligatoire (sans token → 403).
+- 🅱️ `api.require_miniapp_auth` = **true** en prod (auth init_data ; false = uid falsifiable).
+- 🅰️ `api.admin_token` : secret fort pour `finalize_kyc` + `/api/admin/enrollments`
+  (ce dernier expose emails/liens de TOUS les users → idéalement restreindre par IP/VPN).
 - Tokens via `openssl rand -hex 16`. `params.json` est gitignoré (jamais commité).
 
 ## 6. Liens & langue
