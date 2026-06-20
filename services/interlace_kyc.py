@@ -402,6 +402,19 @@ async def complete_after_kyc_passed(account_id: str, case_id: Optional[str] = No
                     time.sleep(3)
             if last_err:
                 raise last_err
+            # ATTENDRE que le sous-compte reflète le virement avant d'émettre la
+            # carte (le règlement maître->sous est asynchrone côté Interlace ;
+            # sinon create_prepaid_card échoue en 100100001 "sub amount is error").
+            funded = False
+            for _ in range(10):
+                sw = c.get_infinity_wallet(account_id)
+                if sw and float(sw.get("available") or 0) >= float(amount):
+                    funded = True
+                    break
+                time.sleep(2)
+            if not funded:
+                logger.warning(f"[interlace-kyc] {account_id}: sous-compte pas encore "
+                               f"crédité ({amount}) après attente — tentative quand même")
         # 6 — carte prépayée rechargeable (virtuelle), chargée de `amount`
         card = c.create_prepaid_card(
             account_id=account_id, bin_id=bin_id, cardholder_id=chid,
