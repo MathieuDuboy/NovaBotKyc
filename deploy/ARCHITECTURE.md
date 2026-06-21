@@ -111,5 +111,6 @@ Ouverture du lien `?start=<token>` (`handle_card_link`) :
 | `DEPLOY.md` | Déploiement VPS détaillé (Docker, systemd, nginx, HTTPS) — en sandbox |
 | `PROD_CHECKLIST.md` | Passage en PROD (creds réels Interlace/NovaBtc, kill-switch, pool) |
 | `PARCOURS_ET_MESSAGES.md` | Tous les parcours utilisateur + textes exacts des messages |
+| `PREPROD_TESTS.md` | **Checklist ordonnée de tous les scénarios à tester** en pré-prod |
 | `DEMO_RUNBOOK.md` | Scénario de démo / test de bout en bout |
 | `INTERLACE_V3_KYC_MAP.md` (racine repo) | Mapping du formulaire KYC vers l'API Interlace v3 |
