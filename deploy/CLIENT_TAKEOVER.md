@@ -25,7 +25,7 @@ bots/comptes). Suivre **dans l'ordre**. (Détails techniques : `ONBOARDING.md` /
       **ngrok** à lui (authtoken + domaine réservé). → voir Phase 5.
 - [ ] **1.7 — (Optionnel) Google Sheets** : un projet Google Cloud + **service account**
       (fichier `credentials.json`) + un **Spreadsheet** partagé avec ce compte de service.
-      Sinon : laisser vide → la feature se désactive d'elle-même (non bloquant).
+      Sinon : laisser vide → désactivé (non bloquant). **Le client GÈRE ses codes parrainage + voit la liste users via la feuille** : voir `REFERRALS_AND_USERS_SHEET.md` (outils `sync_referrals.py` / `export_users.py`).
 - [ ] **1.8 — Accès au code** : propriété/accès des 2 repos Git transférés au client
       (`NovaBotKyc` + `NovaBotCardSandBoxInter`).
 

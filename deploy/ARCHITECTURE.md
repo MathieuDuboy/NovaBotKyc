@@ -115,5 +115,6 @@ Ouverture du lien `?start=<token>` (`handle_card_link`) :
 | `PREPROD_TESTS.md` | **Checklist ordonnée de tous les scénarios à tester** en pré-prod |
 | `SANDBOX_COMMANDS.md` | **Mémo de commandes** (curl `/api/test/*`, logs, lookup client) pour les tests live |
 | `SCENARIO_TEST.md` | **Scénario ordonné A→Z** (vide→refusé→recharge→succès→…) qui exerce tout |
+| `REFERRALS_AND_USERS_SHEET.md` | Google Sheets : gérer les **codes parrainage** + **liste users** (lecture) |
 | `DEMO_RUNBOOK.md` | Scénario de démo / test de bout en bout |
 | `INTERLACE_V3_KYC_MAP.md` (racine repo) | Mapping du formulaire KYC vers l'API Interlace v3 |
