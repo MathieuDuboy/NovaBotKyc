@@ -1,0 +1,245 @@
+{
+  "_comment": "Config SANDBOX ISOLÉE du bot Interlace. Distincte du sandbox pikabao. Secrets gitignorés. Champs <A_REMPLIR> = à compléter avec TES identifiants staging Interlace.",
+  "telegram": {
+    "env": "dev",
+    "bot_id": {
+      "dev": 0,
+      "prod": 0
+    },
+    "miniapp_token": "<REMPLIR>",
+    "bot_token": "<REMPLIR>",
+    "bot_token_prod": "<REMPLIR>",
+    "bot_token_dev": "<REMPLIR>",
+    "bot_token_admin": "<REMPLIR>",
+    "bot_token_admin_prod": "<REMPLIR>",
+    "bot_token_admin_dev": "<REMPLIR>",
+    "id_channel": "6687936113",
+    "admin_chat_id": 6687936113,
+    "admin_chat_id_all": 6687936113,
+    "phone_number": "+000000000",
+    "email": "sandbox@example.com",
+    "webhook": {
+      "enabled": false,
+      "url_prod": "",
+      "url_dev": "",
+      "url": "",
+      "path": "/telegram-webhook",
+      "listen": "0.0.0.0",
+      "port": 3002,
+      "secret": "<REMPLIR>"
+    },
+    "bot_b_username": "novabotcardtestsandboxinterbot"
+  },
+  "google_sheets": {
+    "spreadsheet_id": "1GEVFa8drUZn2JlgDG08YMsnRN6zljQ7SA8ddwImWY9g",
+    "users_sheet": "users_kyc",
+    "credentials_path": "./credentials.json",
+    "secure_token": "<REMPLIR>",
+    "scopes": [
+      "https://www.googleapis.com/auth/spreadsheets"
+    ],
+    "field_names": [
+      {
+        "api": "userId",
+        "sheet": "USER_ID",
+        "internal": "chatId"
+      },
+      {
+        "api": "username",
+        "sheet": "USERNAME",
+        "internal": "username"
+      },
+      {
+        "api": "dateReception",
+        "sheet": "CREATION DATE",
+        "internal": "dateReception"
+      },
+      {
+        "api": "prenomCarte",
+        "sheet": "CARD NAME",
+        "internal": "firstName"
+      },
+      {
+        "api": "nomCarte",
+        "sheet": "CARD SURNAME",
+        "internal": "lastName"
+      },
+      {
+        "api": "email",
+        "sheet": "EMAIL",
+        "internal": "email"
+      },
+      {
+        "api": "telephone",
+        "sheet": "TELEPHONE",
+        "internal": "phone"
+      },
+      {
+        "api": "referralCode",
+        "sheet": "REFERRAL CODE",
+        "internal": "referralCode"
+      },
+      {
+        "api": "firstName",
+        "sheet": "Telegram FirstName",
+        "internal": "firstNameChat"
+      },
+      {
+        "api": "lastName",
+        "sheet": "Telegram LastName",
+        "internal": "lastNameChat"
+      },
+      {
+        "api": "languageCode",
+        "sheet": "Telegram LANGUAGE_CODE",
+        "internal": "language"
+      },
+      {
+        "api": "cardNumber",
+        "sheet": "CARD ID",
+        "internal": "CARD ID"
+      },
+      {
+        "api": "novaAddress",
+        "sheet": "nova_address",
+        "internal": "nova_address"
+      }
+    ]
+  },
+  "api": {
+    "port": 3003,
+    "allowed_origins": [
+      "*"
+    ],
+    "miniapp_url": "https://29ba0cf04c1ce9.lhr.life",
+    "public_base_url": "https://daaaee421d8491.lhr.life",
+    "version": "1.0.0",
+    "env": "development",
+    "api_base": "/api"
+  },
+  "paths": {
+    "mini_app_dir": "../miniapp_telegram"
+  },
+  "mongodb": {
+    "uri": "<REMPLIR>",
+    "uri_dev": "<REMPLIR>",
+    "uri_prod": "<REMPLIR>",
+    "db_name": "nova",
+    "collections": {
+      "users": "users",
+      "completed_requests": "completed_requests",
+      "logs": "logs",
+      "api_requests": "api_requests",
+      "interlace_transactions": "interlace_transactions",
+      "nova_fees": "nova_fees",
+      "combined_transactions": "combined_transactions",
+      "cards": "cards",
+      "pending_card_transfers": "pending_card_transfers",
+      "interlace_notifications": "interlace_notifications",
+      "api_callbacks": "api_callbacks",
+      "nova_deposits": "nova_deposits",
+      "deposit_timers": "deposit_timers",
+      "deposit_events": "deposit_events",
+      "withdrawal_events": "withdrawal_events",
+      "account_events": "account_events",
+      "raw_events": "raw_events",
+      "invalid_notifications": "invalid_notifications",
+      "pool_refills": "pool_refills"
+    }
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6382,
+    "db": 0,
+    "username": "default",
+    "password": "<REMPLIR>"
+  },
+  "concurrency": {
+    "mongodb_pool_size": 50,
+    "redis_connections": 50,
+    "concurrent_updates": 50,
+    "rate_limit_window": 60,
+    "worker_count": 1,
+    "max_requests_per_worker": 1000,
+    "worker_connections": 1000
+  },
+  "mysql": {
+    "host": "localhost",
+    "port": 3308,
+    "user": "nova_user",
+    "password": "<REMPLIR>",
+    "database": "nova",
+    "tables": [
+      "users",
+      "referralcodes",
+      "deposits"
+    ]
+  },
+  "tronscan": {
+    "api_key": "<REMPLIR>",
+    "base_url": "https://apilist.tronscan.org/api/"
+  },
+  "interlace": {
+    "mode": "dev",
+    "dev": {
+      "bin": "<A_REMPLIR_BIN_STAGING>",
+      "base_url": "https://api-sandbox.interlace.money/open-api/v3/",
+      "account_id": "<REMPLIR>",
+      "client_id": "<REMPLIR>",
+      "client_secret": "<REMPLIR>",
+      "redirect_uri": "<REMPLIR>",
+      "access_token": "<REMPLIR>",
+      "refresh_token": "<REMPLIR>",
+      "token_expiry": "<REMPLIR>"
+    },
+    "prod": {
+      "bin": "<A_REMPLIR_BIN_STAGING>",
+      "bin_n": "",
+      "base_url": "<A_REMPLIR_BASE_URL_STAGING>",
+      "account_id": "<REMPLIR>",
+      "client_id": "<REMPLIR>",
+      "client_secret": "<REMPLIR>",
+      "redirect_uri": "<REMPLIR>",
+      "access_token": "<REMPLIR>",
+      "refresh_token": "<REMPLIR>",
+      "token_expiry": "<REMPLIR>"
+    }
+  },
+  "nova_api": {
+    "access_key": "<REMPLIR>",
+    "secret_key": "<REMPLIR>",
+    "base_url": "https://api.novabtc.io",
+    "ws_url": "wss://api.novabtc.io",
+    "user_uuid": "<REMPLIR>"
+  },
+  "interlace_fees": {
+    "consumption_t": 50
+  },
+  "nova_deposits": {
+    "min": 100,
+    "max": 100000,
+    "fee_percent": 0.025,
+    "fee_percent_interlace": 0.015,
+    "fee_cash": 4,
+    "currency": "USDT",
+    "virtual_card_fee": 6,
+    "open_card_initial_amount": 10
+  },
+  "interlace_pool": {
+    "threshold": 5000,
+    "max_pool": 30000
+  },
+  "notification_types": [
+    "CardTransaction",
+    "Card3dsOtp",
+    "CardStateChange",
+    "FrozenCard",
+    "UnfrozenCard"
+  ],
+  "interlace_address": {
+    "destination": "<A_REMPLIR_ADRESSE_TRON>",
+    "dchain": "tron"
+  },
+  "testing": true,
+  "testing_url": "http://localhost:3002"
+}
