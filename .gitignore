@@ -51,3 +51,4 @@ __pycache__/
 # config de référence selharrar (secrets) — ne jamais committer
 config/params.selharrar-reference.json
 config/*reference*.json
+deploy/reassign_audit.log
