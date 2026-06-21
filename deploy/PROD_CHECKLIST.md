@@ -3,6 +3,12 @@
 Passage de l'environnement **sandbox** à la **prod**. À faire dans l'ordre.
 Les deux bots partagent le **même compte Interlace** (1 seule URL de webhook).
 
+> 🔑 **`params.json` n'est PAS dans git** (gitignoré). Pour la prod, il est **remis en
+> main propre** par l'opérateur, puis **édité À LA MAIN sur le VPS** :
+> `nano /opt/nova/interlace_bot/config/params.json` (et `/opt/nova/kyc_bot/config/params.json`),
+> on renseigne les valeurs prod (sections ci-dessous), puis `systemctl restart nova-kyc nova-card`.
+> Idem `config/credentials.json` (service account Google) : déposé à la main, jamais committé.
+
 > Légende : 🅰️ = Bot A (kyc_bot, :3003) · 🅱️ = Bot B (interlace_bot, :3002)
 
 ---
