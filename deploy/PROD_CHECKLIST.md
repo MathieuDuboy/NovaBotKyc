@@ -46,10 +46,18 @@ https://<domaine-card>/api/callback
   "ws_url": "wss://api.novabtc.io"
 }
 ```
-- Mettre `testing.testing` = **false** (désactive le gate qui empêche `connect_websocket()`).
+- ⚠️ **NOUVELLE CLÉ/SECRET API NovaBtc** (écoute des dépôts) : mettre la `access_key`
+  + `secret_key` **de prod** (et `user_uuid` si le compte a changé). Ce sont CES creds
+  qui authentifient le WebSocket. Après changement : `systemctl restart nova-card`.
+- Mettre `testing.testing` = **false** (sinon le WebSocket NE se connecte PAS — donc
+  changer la clé ne sert à rien tant que testing=true).
 - Au boot, vérifier les logs : `WebSocket connection established` + `Socket.IO connected to …`.
-- Remplir la table `pool` avec de **vraies adresses** USDT-TRC20 gérées par NovaBtc
-  (les `TSandboxFakeAddr…` sont factices).
+- **Pool d'adresses (modèle 1 adresse = 1 carte)** : importer les **5000 vraies adresses**
+  USDT-TRC20 **du compte NovaBtc ci-dessus** dans la table `pool` (status `free`).
+  Elles DOIVENT appartenir à ce compte, sinon les dépôts n'arrivent jamais au bot.
+  Import : `INSERT IGNORE INTO pool (nova_address,status) VALUES (<addr>,'free')`
+  (script CSV fourni). Chaque carte créée « claim » ensuite une adresse libre.
+  Les `TSandboxFakeAddr…` sont factices (sandbox).
 
 ## 4. Frais & limites de dépôt (🅱️)
 
