@@ -107,6 +107,7 @@ Ouverture du lien `?start=<token>` (`handle_card_link`) :
 | Doc | Contenu |
 |---|---|
 | **`ARCHITECTURE.md`** (ce fichier) | Vue d'ensemble, modèle de données, flux, garde-fous |
+| **`CLIENT_TAKEOVER.md`** | **Prise en main TOTALE par le client** (autonomie complète, couper toute dépendance) |
 | **`ONBOARDING.md`** | Reprendre le projet : tes propres bots, creds, config, pré-prod → prod |
 | `DEPLOY.md` | Déploiement VPS détaillé (Docker, systemd, nginx, HTTPS) — en sandbox |
 | `PROD_CHECKLIST.md` | Passage en PROD (creds réels Interlace/NovaBtc, kill-switch, pool) |
