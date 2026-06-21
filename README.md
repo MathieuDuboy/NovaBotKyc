@@ -1,5 +1,13 @@
 # Nova Banking Bot and API
 
+> 📦 **Ce dépôt = BOT A (KYC).** Il fonctionne avec **Bot B (carte)** =
+> dépôt `NovaBotCardSandBoxInter`, déployés côte à côte sous `/opt/nova/`.
+>
+> 🧭 **Nouveau sur le projet ? Commence par la doc de reprise :**
+> - [`deploy/ARCHITECTURE.md`](deploy/ARCHITECTURE.md) — vue d'ensemble, modèle de données, flux
+> - [`deploy/ONBOARDING.md`](deploy/ONBOARDING.md) — reprendre avec tes propres bots → pré-prod → prod
+> - [`deploy/PROD_CHECKLIST.md`](deploy/PROD_CHECKLIST.md) · [`deploy/PARCOURS_ET_MESSAGES.md`](deploy/PARCOURS_ET_MESSAGES.md) · [`deploy/DEPLOY.md`](deploy/DEPLOY.md)
+
 This repository contains the backend code for the Nova Banking Telegram Bot and the associated API.
 
 ## Features
